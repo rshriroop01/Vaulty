@@ -1,16 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
+import { CATEGORIES, formatBytes } from "@/lib/categories";
 import { getMe } from "@/lib/server-auth";
-
-// Category accents from the approved 1a design data
-const CATEGORIES = [
-  { label: "Receipts", color: "#3b6fe0" },
-  { label: "Warranties", color: "#1f8577" },
-  { label: "Insurance", color: "#e26a3c" },
-  { label: "Medical", color: "#946200" },
-  { label: "IDs & Legal", color: "#6a5acd" },
-  { label: "Home", color: "#4c5561" },
-];
+import { getDocumentsServer, getUsageServer } from "@/lib/server-data";
 
 function greeting() {
   const h = new Date().getHours();
@@ -28,14 +21,24 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 export default async function DashboardPage() {
   const me = await getMe();
   if (!me) redirect("/signin");
+  const [usage, documents] = await Promise.all([getUsageServer(), getDocumentsServer()]);
   const firstName = me.name.split(" ")[0];
-  const memberCount = 1; // becomes real at M7 (family sharing)
+  const docCount = usage?.document_count ?? 0;
+  const recent = (documents ?? []).slice(0, 4);
 
   const stats = [
-    { label: "Documents", value: "0", sub: "add your first", color: "#171d26" },
-    { label: "Action needed", value: "0", sub: "deadlines <30 days", color: "#171d26" },
-    { label: "Reminders set", value: "0", sub: "email delivery", color: "#171d26" },
-    { label: "Family members", value: String(memberCount), sub: "of 6 seats", color: "#171d26" },
+    {
+      label: "Documents",
+      value: String(docCount),
+      sub: docCount === 0 ? "add your first" : formatBytes(usage?.storage_bytes ?? 0),
+    },
+    { label: "Action needed", value: "0", sub: "deadlines <30 days" },
+    { label: "Reminders set", value: "0", sub: "email delivery" },
+    {
+      label: "Family members",
+      value: String(usage?.member_count ?? 1),
+      sub: "of 6 seats",
+    },
   ];
 
   return (
@@ -45,7 +48,9 @@ export default async function DashboardPage() {
         {greeting()}, {firstName}
       </h1>
       <p className="mb-[22px] text-[13px] text-text-sub">
-        No deadlines need attention. Add documents to get started.
+        {docCount === 0
+          ? "No deadlines need attention. Add documents to get started."
+          : `${docCount} document${docCount === 1 ? "" : "s"} protected. No deadlines need attention.`}
       </p>
 
       <div className="mb-[22px] grid grid-cols-4 gap-3.5">
@@ -53,10 +58,7 @@ export default async function DashboardPage() {
           <div key={s.label} className="rounded-[10px] border border-border bg-card px-[18px] py-4">
             <div className="mb-2 text-[12px] text-text-sub">{s.label}</div>
             <div className="flex items-baseline gap-2">
-              <span
-                className="font-mono text-[26px] font-semibold tracking-[-0.02em]"
-                style={{ color: s.color }}
-              >
+              <span className="font-mono text-[26px] font-semibold tracking-[-0.02em] text-[#171d26]">
                 {s.value}
               </span>
               <span className="text-[11.5px] text-text-faint">{s.sub}</span>
@@ -83,7 +85,7 @@ export default async function DashboardPage() {
             <div className="grid grid-cols-2 gap-[9px]">
               {CATEGORIES.map((c) => (
                 <div
-                  key={c.label}
+                  key={c.key}
                   className="flex items-center gap-[9px] rounded-control border border-hairline px-[11px] py-[9px]"
                 >
                   <span
@@ -91,7 +93,9 @@ export default async function DashboardPage() {
                     style={{ background: c.color }}
                   />
                   <span className="text-[12.5px] font-medium">{c.label}</span>
-                  <span className="ml-auto font-mono text-[11.5px] text-text-faint">0</span>
+                  <span className="ml-auto font-mono text-[11.5px] text-text-faint">
+                    {usage?.categories?.[c.key] ?? 0}
+                  </span>
                 </div>
               ))}
             </div>
@@ -100,10 +104,40 @@ export default async function DashboardPage() {
           <div className="rounded-[10px] border border-border bg-card px-[18px] py-[15px]">
             <div className="mb-2.5 flex items-baseline justify-between">
               <span className="text-[14px] font-semibold">Recently added</span>
+              <Link href="/documents" className="text-[11.5px] font-medium text-link">
+                Add more
+              </Link>
             </div>
-            <div className="rounded-control border border-dashed border-border px-4 py-5 text-center text-[12px] text-text-sub">
-              Uploads land here — drag &amp; drop arrives with the Documents milestone.
-            </div>
+            {recent.length === 0 ? (
+              <div className="rounded-control border border-dashed border-border px-4 py-5 text-center text-[12px] text-text-sub">
+                Uploads land here —{" "}
+                <Link href="/documents" className="font-medium text-link">
+                  add your first document
+                </Link>
+                .
+              </div>
+            ) : (
+              recent.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-[11px] border-t border-[#f2f4f6] py-2 first:border-t-0"
+                >
+                  <div className="grid h-9 w-[30px] flex-none place-items-center rounded-[4px] border border-border bg-app font-mono text-[8.5px] font-semibold text-text-faint">
+                    {(r.file_name.split(".").pop() ?? "").toUpperCase().slice(0, 4)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-[12.5px] font-medium">{r.title}</div>
+                    <div className="text-[11px] text-text-faint">
+                      {formatBytes(r.size_bytes)} ·{" "}
+                      {new Date(r.created_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="rounded-[10px] bg-ink px-[18px] py-[15px] text-white">

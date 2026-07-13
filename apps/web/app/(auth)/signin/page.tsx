@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, tryRefreshSession } from "@/lib/api";
 import { Field, FormError, GoogleButton, OrDivider, PrimaryButton } from "@/components/auth/fields";
 
 export default function SignInPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  // Landed here with an expired access token but a live refresh session?
+  // Rotate silently and bounce back in.
+  useEffect(() => {
+    void tryRefreshSession().then((ok) => {
+      if (ok) {
+        router.replace("/dashboard");
+        router.refresh();
+      }
+    });
+  }, [router]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

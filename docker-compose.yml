@@ -9,6 +9,7 @@ x-api-base: &api-base
     DATABASE_URL: postgresql+asyncpg://vaultly:vaultly@postgres:5432/vaultly
     REDIS_URL: redis://redis:6379/0
     S3_ENDPOINT_URL: http://minio:9000
+    S3_PUBLIC_ENDPOINT_URL_OVERRIDE: http://localhost:9000
     SMTP_HOST: mailpit
   volumes:
     - ./apps/api:/app

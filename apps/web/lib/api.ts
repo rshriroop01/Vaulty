@@ -10,15 +10,31 @@ export class ApiError extends Error {
   }
 }
 
+/** Rotate the session using the refresh cookie. Returns true on success. */
+export async function tryRefreshSession(): Promise<boolean> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => null);
+  return res?.ok ?? false;
+}
+
 /**
  * Thin typed fetch wrapper for the Vaultly API.
  * The backend always returns RFC 7807 problem+json on failure.
+ * A 401 triggers one silent refresh + retry (access tokens live 15 minutes).
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  const doFetch = () =>
+    fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+
+  let res = await doFetch();
+  if (res.status === 401 && (await tryRefreshSession())) {
+    res = await doFetch();
+  }
   if (!res.ok) {
     const problem = await res
       .json()

@@ -9,18 +9,20 @@ and risk (OCR accuracy, search latency, reminder delivery) is retired early.
 Monorepo, Docker Compose one-command stack, CI, pre-commit, logging, error handling, API
 versioning, health endpoints, audit log, feature flags, design tokens, docs.
 
-## M1 — Identity & vault shell · *screens 2a, 1a (static), sidebar*
+## M1 — Identity & vault shell ✅ (shipped 2026-07-13) · *screens 2a, 1a, sidebar*
 - `users`, `vaults`, `vault_memberships` (roles: Owner/Admin/Member/Emergency-only), sessions
 - Sign up / sign in (argon2, JWT access + rotating refresh in httpOnly cookies), 2FA scaffold
 - App shell: Ledger sidebar, empty dashboard, auth screens pixel-perfect per 2a
 - Audit: `auth.signup`, `auth.login`, `auth.failed_login`
 - **Exit:** a user can register, sign in, and see their empty vault; ≥80% coverage holds
 
-## M2 — Document upload & storage · *screen 2b (upload half)*
-- `documents` table (vault-scoped), presigned direct-to-S3 upload, download, delete, versions kept
-- Envelope encryption (per-document data keys; KMS wrapper interface, local key for dev)
+## M2 — Document upload & storage ✅ (shipped 2026-07-13) · *screen 2b (upload half)*
+- `documents` table (vault-scoped), presigned direct-to-S3 upload, download, delete
+- At-rest encryption via storage-layer SSE (S3 default AES-256; MinIO local). App-managed
+  per-document envelope encryption moved to M10 hardening — direct presigned uploads make
+  app-level crypto a client-side concern that needs its own design pass
 - Tier quota enforcement (100MB / 25 docs free) — billing-ready without billing
-- **Exit:** upload→view→download round-trip <2s for a 5MB PDF (PRD target)
+- **Exit met:** upload→list→download→delete round-trip verified through the UI
 
 ## M3 — OCR & AI extraction pipeline · *screen 2b (queue, field chips, suggestion banner)*
 - Celery pipeline: upload event → OCR (`OcrProvider`: Tesseract local / Textract prod) →

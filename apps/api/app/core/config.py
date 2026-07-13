@@ -29,9 +29,15 @@ class Settings(BaseSettings):
 
     # Object storage (MinIO locally, S3 in production)
     s3_endpoint_url: str = "http://localhost:9000"
+    # What the *browser* can reach for presigned URLs (differs from s3_endpoint_url in Docker)
+    s3_public_endpoint_url_override: str | None = None
     s3_bucket: str = "vaultly-documents"
     s3_access_key: str = ""
     s3_secret_key: str = ""
+
+    @property
+    def s3_public_endpoint_url(self) -> str:
+        return self.s3_public_endpoint_url_override or self.s3_endpoint_url
 
     # Email (Mailpit locally, SES/Resend in production)
     smtp_host: str = "localhost"

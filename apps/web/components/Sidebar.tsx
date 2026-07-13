@@ -13,7 +13,15 @@ const NAV = [
   { label: "Family", href: "/family" },
 ];
 
-export function Sidebar({ plan, storageUsed }: { plan: string; storageUsed: string }) {
+export function Sidebar({
+  plan,
+  storageUsed,
+  storagePct,
+}: {
+  plan: string;
+  storageUsed: string;
+  storagePct: number;
+}) {
   const pathname = usePathname();
   return (
     <aside className="flex w-[232px] flex-none flex-col border-r border-border bg-card py-5">
@@ -48,7 +56,10 @@ export function Sidebar({ plan, storageUsed }: { plan: string; storageUsed: stri
           Storage · {plan.charAt(0).toUpperCase() + plan.slice(1)}
         </div>
         <div className="h-[5px] rounded-[3px] bg-[#e6eaee]">
-          <div className="h-[5px] w-[2%] rounded-[3px] bg-ink" />
+          <div
+            className="h-[5px] rounded-[3px] bg-ink"
+            style={{ width: `${Math.max(storagePct, 2)}%` }}
+          />
         </div>
         <div className="mt-1.5 font-mono text-[11px] text-text-sub">{storageUsed} used</div>
       </div>

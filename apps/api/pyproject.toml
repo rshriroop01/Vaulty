@@ -17,6 +17,7 @@ dependencies = [
     "argon2-cffi>=23.1",
     "pyjwt>=2.9",
     "email-validator>=2.2",
+    "boto3>=1.35",
 ]
 
 [project.optional-dependencies]
@@ -55,7 +56,7 @@ plugins = ["pydantic.mypy"]
 exclude = ["migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "redis.*"]
+module = ["celery.*", "redis.*", "boto3.*", "botocore.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
