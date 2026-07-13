@@ -1,0 +1,13 @@
+{
+  "name": "@vaultly/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types generated from the FastAPI OpenAPI contract. Never edit src/api.d.ts by hand — run `npm run generate` with the API running.",
+  "types": "src/api.d.ts",
+  "scripts": {
+    "generate": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/api.d.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0"
+  }
+}

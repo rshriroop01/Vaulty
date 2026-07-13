@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+/*
+ * Ledger design system tokens — single source of truth:
+ * docs/design/handoff-v1/README.md (colors, type, geometry are FINAL).
+ * Usage: bg-ink, text-text-sub, border-hairline, bg-urgent-bg text-urgent, etc.
+ */
+@theme {
+  --color-ink: #16324f; /* primary buttons, active nav, answer card */
+  --color-text: #1c2733;
+  --color-text-sub: #6b7683;
+  --color-text-faint: #8d97a3;
+  --color-border: #e2e6ea; /* cards, inputs */
+  --color-hairline: #eef1f4; /* row dividers, skeletons */
+  --color-app: #f4f5f7; /* app background */
+  --color-card: #ffffff;
+  --color-link: #2a6fdb;
+  --color-urgent: #c2410c; /* <14 days, errors */
+  --color-urgent-bg: #fff1e7;
+  --color-warn: #946200; /* 14–30 days */
+  --color-warn-bg: #fdf4dd;
+  --color-ok: #3d6b5e;
+  --color-ok-bg: #e9f2ee;
+  --color-nav-active: #eaf0f6;
+  --color-input-border: #dfe4e9;
+  --color-avatar: #dbe3ea;
+
+  --font-sans: var(--font-plex-sans), sans-serif;
+  --font-mono: var(--font-plex-mono), monospace;
+
+  --radius-tag: 5px;
+  --radius-control: 8px; /* buttons, inputs, date chips: 7–9px */
+  --radius-card: 11px; /* cards: 10–12px */
+
+  --shadow-card: 0 1px 3px rgba(22, 50, 79, 0.06);
+}
+
+body {
+  background: var(--color-app);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+}

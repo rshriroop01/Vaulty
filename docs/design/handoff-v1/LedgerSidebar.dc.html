@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+</helmet>
+<div style="width:232px; height:100%; box-sizing:border-box; background:#ffffff; border-right:1px solid #e2e6ea; display:flex; flex-direction:column; padding:20px 0; font-family:'IBM Plex Sans',sans-serif; color:#1c2733;">
+  <div style="display:flex; align-items:center; gap:10px; padding:0 20px 22px;">
+    <div style="width:28px; height:28px; background:#16324f; border-radius:7px; display:grid; place-items:center; color:#fff; font:700 13px 'IBM Plex Mono',monospace;">V</div>
+    <span style="font-weight:700; font-size:16px; letter-spacing:-0.01em;">Vaultly</span>
+  </div>
+  <sc-for list="{{ nav }}" as="n" hint-placeholder-count="7">
+    <div style="display:flex; align-items:center; gap:11px; margin:0 10px; padding:9px 12px; border-radius:7px; font-size:13.5px; font-weight:{{ n.w }}; color:{{ n.color }}; background:{{ n.bg }};">
+      <span style="width:8px; height:8px; border-radius:2px; background:{{ n.dot }};"></span>{{ n.label }}
+      <sc-if value="{{ n.count }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto; font:600 11px 'IBM Plex Mono',monospace; color:#c2410c; background:#fff1e7; padding:1px 7px; border-radius:9px;">{{ n.count }}</span></sc-if>
+    </div>
+  </sc-for>
+  <div style="margin-top:auto; padding:16px 20px 0; border-top:1px solid #eef1f4;">
+    <div style="font-size:11px; color:#6b7683; margin-bottom:6px;">Storage · Premium</div>
+    <div style="height:5px; background:#e6eaee; border-radius:3px;"><div style="width:34%; height:5px; background:#16324f; border-radius:3px;"></div></div>
+    <div style="font:11px 'IBM Plex Mono',monospace; color:#6b7683; margin-top:6px;">3.4 GB used</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:232,&quot;height&quot;:840},&quot;active&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Dashboard&quot;,&quot;Documents&quot;,&quot;Reminders&quot;,&quot;Insurance&quot;,&quot;Medical bills&quot;,&quot;Emergency binder&quot;,&quot;Family&quot;],&quot;default&quot;:&quot;Dashboard&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'Dashboard';
+    const items = [
+      { label: 'Dashboard' }, { label: 'Documents' }, { label: 'Reminders', count: 3 },
+      { label: 'Insurance' }, { label: 'Medical bills' }, { label: 'Emergency binder' }, { label: 'Family' },
+    ];
+    const nav = items.map(n => n.label === active
+      ? Object.assign({}, n, { w: 600, color: '#16324f', bg: '#eaf0f6', dot: '#16324f' })
+      : Object.assign({}, n, { w: 400, color: '#4c5561', bg: 'transparent', dot: '#c8cfd7' }));
+    return { nav };
+  }
+}
+</script>
+</body>
+</html>
