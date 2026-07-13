@@ -24,12 +24,15 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
 - Tier quota enforcement (100MB / 25 docs free) — billing-ready without billing
 - **Exit met:** upload→list→download→delete round-trip verified through the UI
 
-## M3 — OCR & AI extraction pipeline · *screen 2b (queue, field chips, suggestion banner)*
-- Celery pipeline: upload event → OCR (`OcrProvider`: Tesseract local / Textract prod) →
-  Claude extraction (type, vendor, dates, amounts) → status updates (Queued / OCR % / Extracted)
-- "Warranty detected → create warranty + reminder" suggestion flow
-- OCR accuracy harness with a labeled receipt/policy corpus — tracks the 95% PRD target
-- **Exit:** dropped receipt auto-populates extracted fields without user input
+## M3 — AI extraction pipeline ✅ (shipped 2026-07-14) · *screen 2b (queue, chips, banner)*
+- Celery pipeline: upload → queued → processing → extracted | failed, with retries
+- Claude (Opus 4.8, structured outputs) reads PDFs/images natively — one call does
+  OCR + classification + field extraction, replacing the planned Tesseract/Textract split
+- Auto-categorization into the six vault categories, title rewrite, expiry-date capture
+- Free-tier OCR quota enforced (5 extractions/month); no key or over quota → doc stays uploaded
+- "Warranty detected → create warranty + reminder" suggestion banner (action activates at M5)
+- Deferred: labeled accuracy corpus for the 95% PRD target → M10 hardening
+- **Exit met:** dropped receipt auto-populated vendor/amount/dates/chips with no user input
 
 ## M4 — Search · *screen 2c*
 - Postgres FTS (tsvector over title/extracted text/metadata) + filters (category/date/owner)

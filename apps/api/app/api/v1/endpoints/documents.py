@@ -1,18 +1,22 @@
 import re
-from datetime import datetime
-from typing import Annotated
+from datetime import UTC, date, datetime
+from typing import Annotated, Any
 from uuid import UUID, uuid4
 
+import structlog
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
-from app.api.deps import CurrentVault, DbSession
+from app.api.deps import CurrentVault, DbSession, VaultContext
 from app.core import audit
 from app.core.errors import AppError, ForbiddenError, NotFoundError
 from app.core.quotas import ALLOWED_CONTENT_TYPES, MAX_FILE_SIZE_BYTES, PLAN_LIMITS
 from app.core.storage import StorageProvider, get_storage
 from app.models import Document, DocumentCategory, DocumentStatus
+from app.services.extraction import EXTRACTABLE_CONTENT_TYPES, extraction_enabled
+
+logger = structlog.get_logger("documents")
 
 router = APIRouter()
 
@@ -43,6 +47,8 @@ class DocumentOut(BaseModel):
     size_bytes: int
     category: DocumentCategory
     status: DocumentStatus
+    extracted: dict[str, Any] | None = None
+    expiry_date: date | None = None
     created_at: datetime
 
 
@@ -108,6 +114,29 @@ async def initiate_upload(
     return UploadTicket(document_id=doc.id, upload_url=url)
 
 
+def _enqueue_extraction(document_id: UUID) -> None:
+    """Isolated so tests can monkeypatch; imports Celery lazily."""
+    from app.worker.tasks.extraction import extract_document
+
+    extract_document.delay(str(document_id))
+
+
+async def _within_ocr_quota(db: DbSession, ctx: VaultContext) -> bool:
+    limit = PLAN_LIMITS[ctx.vault.plan].ocr_per_month
+    if limit is None:
+        return True
+    month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    used = (
+        await db.scalar(
+            select(func.count()).where(
+                Document.vault_id == ctx.vault.id,
+                Document.extraction_requested_at >= month_start,
+            )
+        )
+    ) or 0
+    return used < limit
+
+
 @router.post("/{document_id}/complete", response_model=DocumentOut)
 async def complete_upload(
     document_id: UUID, db: DbSession, ctx: CurrentVault, storage: Storage
@@ -129,7 +158,26 @@ async def complete_upload(
         file_name=doc.file_name,
         size_bytes=actual_size,
     )
+
+    # M3: queue AI extraction when possible; otherwise the doc simply stays uploaded
+    should_extract = (
+        extraction_enabled()
+        and doc.content_type in EXTRACTABLE_CONTENT_TYPES
+        and await _within_ocr_quota(db, ctx)
+    )
+    if should_extract:
+        doc.status = DocumentStatus.queued
+        doc.extraction_requested_at = datetime.now(UTC)
     await db.commit()
+
+    if should_extract:
+        try:
+            _enqueue_extraction(doc.id)
+        except Exception:
+            # Broker down must not fail the upload — revert to plain uploaded
+            logger.exception("extraction_enqueue_failed", document_id=str(doc.id))
+            doc.status = DocumentStatus.uploaded
+            await db.commit()
     return doc
 
 

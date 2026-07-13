@@ -26,6 +26,8 @@ class StorageProvider(Protocol):
         """Size in bytes, or None if the object doesn't exist."""
         ...
 
+    async def get_object(self, key: str) -> bytes: ...
+
     async def delete_object(self, key: str) -> None: ...
 
 
@@ -80,6 +82,13 @@ class S3StorageProvider:
                 return None
 
         return await anyio.to_thread.run_sync(_head)
+
+    async def get_object(self, key: str) -> bytes:
+        def _get() -> bytes:
+            resp = self._internal.get_object(Bucket=self._bucket, Key=key)
+            return bytes(resp["Body"].read())
+
+        return await anyio.to_thread.run_sync(_get)
 
     async def delete_object(self, key: str) -> None:
         def _delete() -> None:

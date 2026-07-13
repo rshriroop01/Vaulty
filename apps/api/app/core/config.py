@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     def s3_public_endpoint_url(self) -> str:
         return self.s3_public_endpoint_url_override or self.s3_endpoint_url
 
+    # AI extraction (M3+). Empty key = extraction disabled, uploads still work.
+    anthropic_api_key: str = ""
+    extraction_model: str = "claude-opus-4-8"
+
     # Email (Mailpit locally, SES/Resend in production)
     smtp_host: str = "localhost"
     smtp_port: int = 1025

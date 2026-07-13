@@ -21,19 +21,102 @@ type QueueEntry = {
   error?: string;
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  uploaded: "Uploaded",
+  queued: "Queued",
+  processing: "Analyzing…",
+  extracted: "Extracted",
+  failed: "Failed",
+};
+
 function StateTag({ state }: { state: QueueEntry["state"] | string }) {
+  const label = STATUS_LABELS[state] ?? state;
   const styles =
-    state === "Failed"
+    state === "Failed" || state === "failed"
       ? "bg-urgent-bg text-urgent"
-      : state === "Uploading"
+      : state === "Uploading" || state === "queued" || state === "processing"
         ? "bg-warn-bg text-warn"
         : "bg-ok-bg text-ok";
   return (
     <span
       className={`whitespace-nowrap rounded-tag px-[9px] py-[3px] text-[11.5px] font-semibold ${styles}`}
     >
-      {state}
+      {label}
     </span>
+  );
+}
+
+const ACTIVE_STATES = new Set(["queued", "processing"]);
+
+function formatDate(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Extracted-field chips + warranty suggestion banner, per design 2b. */
+function ExtractionDetails({ doc }: { doc: DocumentItem }) {
+  const [dismissed, setDismissed] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  if (doc.status !== "extracted" || !doc.extracted) return null;
+
+  const chips: { label: string; value: string }[] = [];
+  if (doc.extracted.vendor) chips.push({ label: "Vendor", value: doc.extracted.vendor });
+  if (doc.extracted.amount != null)
+    chips.push({
+      label: "Amount",
+      value: `${doc.extracted.currency ?? ""} ${doc.extracted.amount.toFixed(2)}`.trim(),
+    });
+  if (doc.extracted.document_date)
+    chips.push({ label: "Date", value: formatDate(doc.extracted.document_date) });
+  if (doc.extracted.expiry_date)
+    chips.push({ label: "Expires", value: formatDate(doc.extracted.expiry_date) });
+  chips.push(...doc.extracted.fields);
+
+  // The design's canonical case is a warranty detected on a *receipt* (screen 2b)
+  const suggestExpiry =
+    !dismissed && doc.expiry_date && ["receipts", "warranties", "insurance"].includes(doc.category);
+
+  return (
+    <div className="ml-[42px]">
+      {chips.length > 0 && (
+        <div className="mt-[11px] flex flex-wrap gap-2">
+          {chips.slice(0, 6).map((f, i) => (
+            <span
+              key={`${f.label}-${i}`}
+              className="rounded-tag border border-border bg-app px-[9px] py-1 text-[11.5px]"
+            >
+              <span className="text-text-faint">{f.label}</span>{" "}
+              <strong className="font-semibold">{f.value}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+      {suggestExpiry && (
+        <div className="mt-[11px] flex items-center gap-3 rounded-control bg-nav-active px-3.5 py-2.5">
+          <span className="flex-1 text-[12.5px] text-ink">
+            {doc.category === "insurance" ? "Policy" : "Warranty"} until{" "}
+            {formatDate(doc.expiry_date!)} detected. Create{" "}
+            {doc.category === "insurance" ? "policy record" : "warranty record"} + expiry reminder?
+          </span>
+          <button
+            onClick={() => setNote("Reminders arrive with the next milestone (M5).")}
+            className="whitespace-nowrap rounded-[6px] bg-ink px-3 py-1.5 text-[12px] font-semibold text-white"
+          >
+            Create both
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            className="whitespace-nowrap text-[12px] font-semibold text-[#4c5561]"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {note && !dismissed && <div className="mt-1.5 text-[11.5px] text-text-faint">{note}</div>}
+    </div>
   );
 }
 
@@ -59,6 +142,13 @@ export default function DocumentsPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Poll while any document is queued/processing so extraction states appear live
+  useEffect(() => {
+    if (!docs?.some((d) => ACTIVE_STATES.has(d.status))) return;
+    const timer = setInterval(() => void refresh(), 2500);
+    return () => clearInterval(timer);
+  }, [docs, refresh]);
 
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
@@ -187,35 +277,38 @@ export default function DocumentsPage() {
               docs.map((d) => (
                 <div
                   key={d.id}
-                  className="flex items-center gap-3 border-t border-hairline px-[18px] py-3 hover:bg-[#f8fafc]"
+                  className="border-t border-hairline px-[18px] py-3 hover:bg-[#f8fafc]"
                 >
-                  <FileGlyph name={d.file_name} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-medium">{d.title}</div>
-                    <div className="mt-0.5 font-mono text-[11px] text-text-faint">
-                      {formatBytes(d.size_bytes)} ·{" "}
-                      {new Date(d.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
+                  <div className="flex items-center gap-3">
+                    <FileGlyph name={d.file_name} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium">{d.title}</div>
+                      <div className="mt-0.5 font-mono text-[11px] text-text-faint">
+                        {formatBytes(d.size_bytes)} ·{" "}
+                        {new Date(d.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
                     </div>
+                    <span className="rounded-tag border border-hairline bg-app px-[9px] py-[3px] text-[11.5px]">
+                      {categoryLabel(d.category)}
+                    </span>
+                    <StateTag state={d.status} />
+                    <button
+                      onClick={() => void onDownload(d.id)}
+                      className="rounded-[6px] border border-input-border px-3 py-1.5 text-[12px] font-semibold text-ink hover:bg-app"
+                    >
+                      Download
+                    </button>
+                    <button
+                      onClick={() => void onDelete(d.id)}
+                      className="rounded-[6px] px-2 py-1.5 text-[12px] font-semibold text-urgent hover:bg-urgent-bg"
+                    >
+                      Delete
+                    </button>
                   </div>
-                  <span className="rounded-tag border border-hairline bg-app px-[9px] py-[3px] text-[11.5px]">
-                    {categoryLabel(d.category)}
-                  </span>
-                  <StateTag state={d.status === "uploaded" ? "Uploaded" : d.status} />
-                  <button
-                    onClick={() => void onDownload(d.id)}
-                    className="rounded-[6px] border border-input-border px-3 py-1.5 text-[12px] font-semibold text-ink hover:bg-app"
-                  >
-                    Download
-                  </button>
-                  <button
-                    onClick={() => void onDelete(d.id)}
-                    className="rounded-[6px] px-2 py-1.5 text-[12px] font-semibold text-urgent hover:bg-urgent-bg"
-                  >
-                    Delete
-                  </button>
+                  <ExtractionDetails doc={d} />
                 </div>
               ))
             )}

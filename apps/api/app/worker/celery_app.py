@@ -9,7 +9,7 @@ celery_app = Celery(
     "vaultly",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.worker.tasks.heartbeat"],
+    include=["app.worker.tasks.heartbeat", "app.worker.tasks.extraction"],
 )
 
 celery_app.conf.update(

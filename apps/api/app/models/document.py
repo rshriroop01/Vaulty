@@ -1,10 +1,13 @@
 import enum
+from datetime import date, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, Enum, ForeignKey, String, Uuid
+from sqlalchemy import BigInteger, Date, DateTime, Enum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
+from app.models.audit import PortableJSON
 
 
 class DocumentCategory(enum.StrEnum):
@@ -47,4 +50,11 @@ class Document(Base, TimestampMixin):
     status: Mapped[DocumentStatus] = mapped_column(
         Enum(DocumentStatus, name="document_status", native_enum=False, length=20),
         default=DocumentStatus.pending_upload,
+    )
+    # M3: Claude extraction results — vendor/dates/amount/fields for the 2b chips
+    extracted: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON, nullable=True)
+    expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    extraction_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,  # counts against the monthly OCR quota
     )

@@ -1,5 +1,14 @@
 import { API_BASE_URL, apiFetch } from "@/lib/api";
 
+export type ExtractedData = {
+  vendor: string | null;
+  document_date: string | null;
+  expiry_date: string | null;
+  amount: number | null;
+  currency: string | null;
+  fields: { label: string; value: string }[];
+};
+
 export type DocumentItem = {
   id: string;
   title: string;
@@ -8,6 +17,8 @@ export type DocumentItem = {
   size_bytes: number;
   category: string;
   status: string;
+  extracted: ExtractedData | null;
+  expiry_date: string | null;
   created_at: string;
 };
 
