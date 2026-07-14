@@ -51,6 +51,8 @@ class Document(Base, TimestampMixin):
         Enum(DocumentStatus, name="document_status", native_enum=False, length=20),
         default=DocumentStatus.pending_upload,
     )
+    # M4: flattened searchable text (title + vendor + extracted fields), FTS-indexed
+    search_text: Mapped[str] = mapped_column(String, default="", server_default="")
     # M3: Claude extraction results — vendor/dates/amount/fields for the 2b chips
     extracted: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON, nullable=True)
     expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)

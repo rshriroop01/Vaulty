@@ -34,12 +34,16 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
 - Deferred: labeled accuracy corpus for the 95% PRD target → M10 hardening
 - **Exit met:** dropped receipt auto-populated vendor/amount/dates/chips with no user input
 
-## M4 — Search · *screen 2c*
-- Postgres FTS (tsvector over title/extracted text/metadata) + filters (category/date/owner)
-- p95 latency instrumented; target <300ms (PRD)
-- pgvector embeddings + hybrid ranking (semantic half of "AI Search")
-- ⌘K overlay from anywhere (3-click rule)
-- **Exit:** "Samsung Washer" finds the warranty PDF instantly (PRD Month-6 journey)
+## M4 — Search ✅ (shipped 2026-07-14) · *screen 2c*
+- Postgres FTS with prefix matching + ts_rank over `search_text` (title + filename +
+  extracted vendor/dates/amounts/fields), GIN-indexed; ILIKE net for mid-word fragments
+- Latency measured server-side and shown in the query bar (observed: 5–50ms, well under
+  the 300ms PRD target); category filter chips with live counts; highlighted snippets + scores
+- ⌘K overlay from anywhere with debounced live results; ask bar opens it
+- Deferred: pgvector semantic embeddings need an embedding provider (Voyage API key —
+  Anthropic has no embeddings API) → folded into M8 with the AI assistant
+- **Exit met:** "Samsung Washer" (and even a mid-word "Samsu", or the order number)
+  finds the receipt instantly
 
 ## M5 — Reminders · *screen 2e*
 - `reminders` (doc-linked or standalone), lead times 30/7/1d, beat scan → email via

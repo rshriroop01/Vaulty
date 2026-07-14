@@ -14,6 +14,7 @@ from app.core import audit
 from app.core.storage import StorageProvider
 from app.models import Document, DocumentCategory, DocumentStatus
 from app.services.extraction import Extractor
+from app.services.search import build_search_text
 
 logger = structlog.get_logger("processing")
 
@@ -50,6 +51,9 @@ async def process_document(
             "currency": result.currency,
             "fields": [{"label": f.label, "value": f.value} for f in result.fields],
         }
+        doc.search_text = build_search_text(
+            doc.title, doc.file_name, doc.extracted, doc.category.value
+        )
         doc.status = DocumentStatus.extracted
         await audit.record(
             db,

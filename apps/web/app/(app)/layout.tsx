@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { CommandK } from "@/components/CommandK";
 import { Sidebar } from "@/components/Sidebar";
 import { formatBytes } from "@/lib/categories";
 import { getMe } from "@/lib/server-auth";
@@ -18,6 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen bg-app">
       <Sidebar plan={plan} storageUsed={formatBytes(used)} storagePct={pct} />
       <main className="min-w-0 flex-1 p-[24px_32px_32px]">{children}</main>
+      <CommandK />
     </div>
   );
 }

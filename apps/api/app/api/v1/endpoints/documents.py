@@ -95,12 +95,16 @@ async def initiate_upload(
     ):
         raise QuotaExceededError("This file would exceed the free plan's 100 MB storage limit.")
 
+    from app.services.search import build_search_text
+
     doc_id = uuid4()
+    title = body.file_name.rsplit(".", 1)[0][:300]
     doc = Document(
         id=doc_id,
         vault_id=ctx.vault.id,
         uploaded_by=ctx.user.id,
-        title=body.file_name.rsplit(".", 1)[0][:300],
+        title=title,
+        search_text=build_search_text(title, body.file_name),
         file_name=body.file_name,
         file_key=f"{ctx.vault.id}/{doc_id}/{_safe_name(body.file_name)}",
         content_type=body.content_type,
