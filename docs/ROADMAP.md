@@ -45,11 +45,19 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
 - **Exit met:** "Samsung Washer" (and even a mid-word "Samsu", or the order number)
   finds the receipt instantly
 
-## M5 — Reminders · *screen 2e*
-- `reminders` (doc-linked or standalone), lead times 30/7/1d, beat scan → email via
-  `EmailProvider` (Mailpit local / SES prod), retries + dead-letter, idempotent sends
-- Delivery-rate metric (99% PRD target); Email/Push channel toggles (push = V3)
-- **Exit:** expiring warranty produces a delivered, audit-logged email on schedule
+## M5 — Reminders ✅ (shipped 2026-07-14) · *screen 2e*
+- `reminders` (doc-linked or standalone) with per-reminder lead times (default 30/7/1d);
+  hourly Celery beat scan sends the most imminent pending lead exactly once per
+  (reminder, lead) via `reminder_sends` — idempotent by unique constraint, retries at
+  the task level, failures recorded for the delivery metric
+- `EmailProvider` interface: SMTP → Mailpit locally, SES/Resend in prod
+- Delivery-rate stat (99% PRD target), needs-attention count feeding the sidebar badge,
+  dashboard "Action needed" KPI, and the real 1a upcoming-deadlines list with date chips
+- "Create both" on the extraction banner now creates the doc-linked reminder
+- Reminders center per 2e: urgency groups, checkbox completes, source-doc links,
+  Email/Push toggles (push = V3), lead-time chips, delivery-rate card
+- **Exit met:** reminder → beat scan → email delivered to Mailpit, audit-logged,
+  idempotent on rescan; delivery rate 100% (1/1)
 
 ## M6 — Domain modules · *screens 2f, 2g, and 1a dashboard live*
 - Receipts, Warranties, Insurance Center (policy cards), Medical Bills (status tracking)

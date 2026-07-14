@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, documents, meta, search, vault
+from app.api.v1.endpoints import auth, documents, meta, reminders, search, vault
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_v1_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_v1_router.include_router(search.router, prefix="/search", tags=["search"])
+api_v1_router.include_router(reminders.router, prefix="/reminders", tags=["reminders"])
 api_v1_router.include_router(vault.router, prefix="/vault", tags=["vault"])
 api_v1_router.include_router(meta.router, prefix="/meta", tags=["meta"])

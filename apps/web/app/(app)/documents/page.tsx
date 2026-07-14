@@ -12,6 +12,7 @@ import {
   type DocumentItem,
 } from "@/lib/documents";
 import { categoryLabel, formatBytes } from "@/lib/categories";
+import { createReminder } from "@/lib/reminders";
 
 type QueueEntry = {
   key: string;
@@ -102,7 +103,21 @@ function ExtractionDetails({ doc }: { doc: DocumentItem }) {
             {doc.category === "insurance" ? "policy record" : "warranty record"} + expiry reminder?
           </span>
           <button
-            onClick={() => setNote("Reminders arrive with the next milestone (M5).")}
+            onClick={async () => {
+              try {
+                await createReminder({
+                  title: `${doc.title} — ${doc.category === "insurance" ? "policy renews" : "warranty expires"}`,
+                  due_date: doc.expiry_date!,
+                  document_id: doc.id,
+                });
+                setNote(
+                  `Reminder set — you'll get emails 30, 7, and 1 day before ${formatDate(doc.expiry_date!)}.`,
+                );
+                setDismissed(true);
+              } catch {
+                setNote("Could not create the reminder — try again.");
+              }
+            }}
             className="whitespace-nowrap rounded-[6px] bg-ink px-3 py-1.5 text-[12px] font-semibold text-white"
           >
             Create both
@@ -115,7 +130,7 @@ function ExtractionDetails({ doc }: { doc: DocumentItem }) {
           </button>
         </div>
       )}
-      {note && !dismissed && <div className="mt-1.5 text-[11.5px] text-text-faint">{note}</div>}
+      {note && <div className="mt-1.5 text-[11.5px] text-ok">{note}</div>}
     </div>
   );
 }

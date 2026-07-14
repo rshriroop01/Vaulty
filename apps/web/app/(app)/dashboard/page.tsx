@@ -2,8 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { CATEGORIES, formatBytes } from "@/lib/categories";
+import { urgency, type Reminder } from "@/lib/reminders";
 import { getMe } from "@/lib/server-auth";
-import { getDocumentsServer, getUsageServer } from "@/lib/server-data";
+import {
+  getDocumentsServer,
+  getReminderStatsServer,
+  getRemindersServer,
+  getUsageServer,
+} from "@/lib/server-data";
 
 function greeting() {
   const h = new Date().getHours();
@@ -18,13 +24,53 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** 1a deadline row: 44px date chip in urgency colorway, title, meta, pill. */
+function DeadlineRow({ reminder }: { reminder: Reminder }) {
+  const u = urgency(reminder.due_date);
+  const due = new Date(reminder.due_date + "T00:00:00");
+  const chipTone =
+    u.daysLeft < 14
+      ? "bg-urgent-bg text-urgent"
+      : u.daysLeft <= 30
+        ? "bg-warn-bg text-warn"
+        : "bg-ok-bg text-ok";
+  return (
+    <div className="flex items-center gap-3.5 border-t border-hairline px-[18px] py-3">
+      <div className={`w-11 flex-none rounded-[7px] py-[5px] text-center ${chipTone}`}>
+        <div className="font-mono text-[15px] font-semibold leading-tight">{due.getDate()}</div>
+        <div className="text-[9.5px] font-semibold uppercase tracking-[.08em]">
+          {due.toLocaleDateString("en-US", { month: "short" })}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="truncate text-[13.5px] font-medium">{reminder.title}</div>
+        <div className="text-[12px] text-text-sub">
+          {reminder.document_title ? `From ${reminder.document_title} · ` : ""}Email reminder
+        </div>
+      </div>
+      <span
+        className={`ml-auto whitespace-nowrap rounded-tag px-[9px] py-[3px] text-[11.5px] font-semibold ${u.className}`}
+      >
+        {u.label}
+      </span>
+    </div>
+  );
+}
+
 export default async function DashboardPage() {
   const me = await getMe();
   if (!me) redirect("/signin");
-  const [usage, documents] = await Promise.all([getUsageServer(), getDocumentsServer()]);
+  const [usage, documents, reminders, reminderStats] = await Promise.all([
+    getUsageServer(),
+    getDocumentsServer(),
+    getRemindersServer(),
+    getReminderStatsServer(),
+  ]);
   const firstName = me.name.split(" ")[0];
   const docCount = usage?.document_count ?? 0;
   const recent = (documents ?? []).slice(0, 4);
+  const deadlines = (reminders ?? []).slice(0, 5);
+  const needsAttention = reminderStats?.needs_attention ?? 0;
 
   const stats = [
     {
@@ -32,8 +78,15 @@ export default async function DashboardPage() {
       value: String(docCount),
       sub: docCount === 0 ? "add your first" : formatBytes(usage?.storage_bytes ?? 0),
     },
-    { label: "Action needed", value: "0", sub: "deadlines <30 days" },
-    { label: "Reminders set", value: "0", sub: "email delivery" },
+    { label: "Action needed", value: String(needsAttention), sub: "deadlines <30 days" },
+    {
+      label: "Reminders set",
+      value: String(reminderStats?.total_active ?? 0),
+      sub:
+        reminderStats?.delivery_rate != null
+          ? `${(reminderStats.delivery_rate * 100).toFixed(1)}% delivered`
+          : "email delivery",
+    },
     {
       label: "Family members",
       value: String(usage?.member_count ?? 1),
@@ -50,7 +103,9 @@ export default async function DashboardPage() {
       <p className="mb-[22px] text-[13px] text-text-sub">
         {docCount === 0
           ? "No deadlines need attention. Add documents to get started."
-          : `${docCount} document${docCount === 1 ? "" : "s"} protected. No deadlines need attention.`}
+          : needsAttention > 0
+            ? `${needsAttention} deadline${needsAttention === 1 ? "" : "s"} need${needsAttention === 1 ? "s" : ""} attention this month.`
+            : `${docCount} document${docCount === 1 ? "" : "s"} protected. No deadlines need attention.`}
       </p>
 
       <div className="mb-[22px] grid grid-cols-4 gap-3.5">
@@ -71,12 +126,18 @@ export default async function DashboardPage() {
         <div className="overflow-hidden rounded-[10px] border border-border bg-card">
           <div className="flex items-baseline justify-between px-[18px] pb-3 pt-[15px]">
             <span className="text-[14px] font-semibold">Upcoming deadlines</span>
-            <span className="text-[12px] font-medium text-link">View all</span>
+            <Link href="/reminders" className="text-[12px] font-medium text-link">
+              View all
+            </Link>
           </div>
-          <EmptyState>
-            Nothing tracked yet — deadlines appear automatically when documents with dates are
-            added.
-          </EmptyState>
+          {deadlines.length === 0 ? (
+            <EmptyState>
+              Nothing tracked yet — deadlines appear automatically when documents with dates are
+              added.
+            </EmptyState>
+          ) : (
+            deadlines.map((r) => <DeadlineRow key={r.id} reminder={r} />)
+          )}
         </div>
 
         <div className="grid gap-3.5">

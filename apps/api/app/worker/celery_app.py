@@ -9,7 +9,11 @@ celery_app = Celery(
     "vaultly",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.worker.tasks.heartbeat", "app.worker.tasks.extraction"],
+    include=[
+        "app.worker.tasks.heartbeat",
+        "app.worker.tasks.extraction",
+        "app.worker.tasks.reminders",
+    ],
 )
 
 celery_app.conf.update(
@@ -19,10 +23,15 @@ celery_app.conf.update(
     timezone="UTC",
 )
 
-# Beat schedule. The reminder scan (M5) will slot in here.
 celery_app.conf.beat_schedule = {
     "heartbeat": {
         "task": "app.worker.tasks.heartbeat.heartbeat",
         "schedule": crontab(minute="0"),  # hourly
+    },
+    # Hourly rather than daily: cheap, and reminders created mid-day still fire
+    # the same day. Idempotency lives in reminder_sends, not the schedule.
+    "reminder-scan": {
+        "task": "app.worker.tasks.reminders.scan_reminders",
+        "schedule": crontab(minute="10"),
     },
 }

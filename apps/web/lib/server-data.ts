@@ -20,3 +20,8 @@ async function serverGet<T>(path: string): Promise<T | null> {
 
 export const getUsageServer = () => serverGet<VaultUsage>("/api/v1/vault/usage");
 export const getDocumentsServer = () => serverGet<DocumentItem[]>("/api/v1/documents");
+
+export const getRemindersServer = () =>
+  serverGet<import("@/lib/reminders").Reminder[]>("/api/v1/reminders");
+export const getReminderStatsServer = () =>
+  serverGet<import("@/lib/reminders").ReminderStats>("/api/v1/reminders/stats");

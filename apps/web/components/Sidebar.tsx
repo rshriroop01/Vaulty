@@ -3,26 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Documents", href: "/documents" },
-  { label: "Reminders", href: "/reminders", count: 0 },
-  { label: "Insurance", href: "/insurance" },
-  { label: "Medical bills", href: "/medical" },
-  { label: "Emergency binder", href: "/emergency" },
-  { label: "Family", href: "/family" },
-];
-
 export function Sidebar({
   plan,
   storageUsed,
   storagePct,
+  remindersCount = 0,
 }: {
   plan: string;
   storageUsed: string;
   storagePct: number;
+  remindersCount?: number;
 }) {
   const pathname = usePathname();
+  const NAV = [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Documents", href: "/documents" },
+    { label: "Reminders", href: "/reminders", count: remindersCount },
+    { label: "Insurance", href: "/insurance" },
+    { label: "Medical bills", href: "/medical" },
+    { label: "Emergency binder", href: "/emergency" },
+    { label: "Family", href: "/family" },
+  ];
   return (
     <aside className="flex w-[232px] flex-none flex-col border-r border-border bg-card py-5">
       <div className="flex items-center gap-2.5 px-5 pb-[22px]">
