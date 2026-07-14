@@ -17,6 +17,7 @@ export type DocumentItem = {
   size_bytes: number;
   category: string;
   status: string;
+  bill_status: string | null;
   extracted: ExtractedData | null;
   expiry_date: string | null;
   created_at: string;
@@ -35,7 +36,32 @@ export type VaultUsage = {
 
 const withCreds: RequestInit = { credentials: "include" };
 
-export const listDocuments = () => apiFetch<DocumentItem[]>("/api/v1/documents", withCreds);
+export const listDocuments = (category?: string) =>
+  apiFetch<DocumentItem[]>(
+    `/api/v1/documents${category ? `?category=${category}` : ""}`,
+    withCreds,
+  );
+
+export const patchDocument = (
+  id: string,
+  patch: { title?: string; category?: string; bill_status?: string },
+) =>
+  apiFetch<DocumentItem>(`/api/v1/documents/${id}`, {
+    method: "PATCH",
+    ...withCreds,
+    body: JSON.stringify(patch),
+  });
+
+/** "$412.70" / "₹3,201.20" / "EUR 12.00" */
+export function formatMoney(amount: number, currency: string | null): string {
+  const symbols: Record<string, string> = { USD: "$", INR: "₹", EUR: "€", GBP: "£" };
+  const sym = currency ? symbols[currency] : undefined;
+  const value = amount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return sym ? `${sym}${value}` : `${currency ?? ""} ${value}`.trim();
+}
 
 export const getUsage = () => apiFetch<VaultUsage>("/api/v1/vault/usage", withCreds);
 

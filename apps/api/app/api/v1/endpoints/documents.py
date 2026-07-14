@@ -47,9 +47,19 @@ class DocumentOut(BaseModel):
     size_bytes: int
     category: DocumentCategory
     status: DocumentStatus
+    bill_status: str | None = None
     extracted: dict[str, Any] | None = None
     expiry_date: date | None = None
     created_at: datetime
+
+
+BILL_STATUSES = {"outstanding", "pending", "paid"}
+
+
+class DocumentPatch(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    category: DocumentCategory | None = None
+    bill_status: str | None = None
 
 
 class DownloadOut(BaseModel):
@@ -186,17 +196,57 @@ async def complete_upload(
 
 
 @router.get("", response_model=list[DocumentOut])
-async def list_documents(db: DbSession, ctx: CurrentVault) -> list[Document]:
-    rows = await db.scalars(
-        select(Document)
-        .where(
-            Document.vault_id == ctx.vault.id,
-            Document.status != DocumentStatus.pending_upload,
-        )
-        .order_by(Document.created_at.desc())
-        .limit(200)
+async def list_documents(
+    db: DbSession, ctx: CurrentVault, category: DocumentCategory | None = None
+) -> list[Document]:
+    stmt = select(Document).where(
+        Document.vault_id == ctx.vault.id,
+        Document.status != DocumentStatus.pending_upload,
     )
+    if category is not None:
+        stmt = stmt.where(Document.category == category)
+    rows = await db.scalars(stmt.order_by(Document.created_at.desc()).limit(200))
     return list(rows)
+
+
+@router.patch("/{document_id}", response_model=DocumentOut)
+async def patch_document(
+    document_id: UUID, body: DocumentPatch, db: DbSession, ctx: CurrentVault
+) -> Document:
+    if not ctx.can_write:
+        raise ForbiddenError("Your role cannot edit documents")
+    doc = await _get_owned(db, ctx, document_id)
+    if body.bill_status is not None and body.bill_status not in BILL_STATUSES:
+        raise AppError(f"bill_status must be one of {sorted(BILL_STATUSES)}")
+
+    changes: dict[str, Any] = {}
+    if body.title is not None and body.title != doc.title:
+        doc.title = body.title
+        changes["title"] = body.title
+    if body.category is not None and body.category != doc.category:
+        doc.category = body.category
+        changes["category"] = body.category.value
+    if body.bill_status is not None and body.bill_status != doc.bill_status:
+        doc.bill_status = body.bill_status
+        changes["bill_status"] = body.bill_status
+
+    if changes:
+        if "title" in changes or "category" in changes:
+            from app.services.search import build_search_text
+
+            doc.search_text = build_search_text(
+                doc.title, doc.file_name, doc.extracted, doc.category.value
+            )
+        await audit.record(
+            db,
+            "document.update",
+            actor_id=ctx.user.id,
+            entity_type="document",
+            entity_id=doc.id,
+            **changes,
+        )
+        await db.commit()
+    return doc
 
 
 @router.get("/{document_id}/download", response_model=DownloadOut)

@@ -59,11 +59,18 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
 - **Exit met:** reminder → beat scan → email delivered to Mailpit, audit-logged,
   idempotent on rescan; delivery rate 100% (1/1)
 
-## M6 — Domain modules · *screens 2f, 2g, and 1a dashboard live*
-- Receipts, Warranties, Insurance Center (policy cards), Medical Bills (status tracking)
-  as typed views + linked records over the document core
-- Dashboard 1a fully wired: KPI cards, upcoming deadlines, category grid, recent imports
-- **Exit:** PRD V1 checklist items Receipt Manager / Warranty / Insurance / Medical all usable
+## M6 — Domain modules ✅ (shipped 2026-07-14) · *screens 2f, 2g, 1a fully live*
+- Insurance center (2f): policy cards derived from Claude-extracted insurance docs —
+  type badge, policy #, coverage lines, premium, renewal status tag, add-policy slot
+- Medical bills (2g): summary stats (outstanding / claims pending / paid YTD) + claims
+  table with click-to-cycle status (outstanding → pending → paid) persisted via
+  `documents.bill_status`; PATCH /documents/{id} also allows title/category fixes
+  (search index rebuilt on edit)
+- Receipt Manager + Warranty Tracking: category filter on the documents list
+  (server param + UI chips) with dashboard category tiles deep-linking in
+- Dashboard 1a fully live since M5 (KPIs, deadlines, categories, recent imports)
+- **Exit met:** real policy + hospital-bill PDFs extracted into a working policy card
+  and claims row; status cycled and persisted; all four PRD V1 modules usable
 
 ## M7 — Family sharing & emergency binder · *screens 2i, 2h*
 - Multi-member vaults, invites, role dropdowns, category-access matrix (full/view/none)

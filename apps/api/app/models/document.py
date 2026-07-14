@@ -53,6 +53,8 @@ class Document(Base, TimestampMixin):
     )
     # M4: flattened searchable text (title + vendor + extracted fields), FTS-indexed
     search_text: Mapped[str] = mapped_column(String, default="", server_default="")
+    # M6: claim/payment tracking for medical bills (screen 2g); null = outstanding
+    bill_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # M3: Claude extraction results — vendor/dates/amount/fields for the 2b chips
     extracted: Mapped[dict[str, Any] | None] = mapped_column(PortableJSON, nullable=True)
     expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)

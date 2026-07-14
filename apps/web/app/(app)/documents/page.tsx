@@ -3,7 +3,8 @@
 /** Documents — screen 2b: dropzone, processing queue, right rail.
  *  OCR/extraction states arrive with M3; today the queue shows real upload progress. */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   deleteDocument,
   downloadDocument,
@@ -11,7 +12,7 @@ import {
   uploadFile,
   type DocumentItem,
 } from "@/lib/documents";
-import { categoryLabel, formatBytes } from "@/lib/categories";
+import { CATEGORIES, categoryLabel, formatBytes } from "@/lib/categories";
 import { createReminder } from "@/lib/reminders";
 
 type QueueEntry = {
@@ -144,10 +145,12 @@ function FileGlyph({ name }: { name: string }) {
   );
 }
 
-export default function DocumentsPage() {
+function DocumentsPageInner() {
+  const initialCategory = useSearchParams().get("category");
   const [docs, setDocs] = useState<DocumentItem[] | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [category, setCategory] = useState<string | null>(initialCategory);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -188,6 +191,9 @@ export default function DocumentsPage() {
     },
     [refresh],
   );
+
+  const visibleDocs =
+    docs === null ? null : category ? docs.filter((d) => d.category === category) : docs;
 
   async function onDownload(id: string) {
     const url = await downloadDocument(id);
@@ -275,21 +281,44 @@ export default function DocumentsPage() {
             <div className="flex items-baseline justify-between px-[18px] pb-[11px] pt-3.5">
               <span className="text-[14px] font-semibold">Documents</span>
               <span className="font-mono text-[11.5px] text-text-faint">
-                {docs?.length ?? 0} total
+                {visibleDocs?.length ?? 0} {category ? categoryLabel(category) : "total"}
               </span>
             </div>
-            {docs === null ? (
+            <div className="flex flex-wrap gap-1.5 px-[18px] pb-3">
+              <button
+                onClick={() => setCategory(null)}
+                className={`rounded-[6px] px-2.5 py-1 text-[11.5px] font-semibold ${
+                  category === null ? "bg-ink text-white" : "border border-border text-[#4c5561]"
+                }`}
+              >
+                All
+              </button>
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c.key}
+                  onClick={() => setCategory(category === c.key ? null : c.key)}
+                  className={`rounded-[6px] px-2.5 py-1 text-[11.5px] ${
+                    category === c.key
+                      ? "bg-ink font-semibold text-white"
+                      : "border border-border font-medium text-[#4c5561]"
+                  }`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            {visibleDocs === null ? (
               <div className="space-y-2 px-[18px] pb-4">
                 {[0, 1, 2].map((i) => (
                   <div key={i} className="h-10 animate-pulse rounded-control bg-hairline" />
                 ))}
               </div>
-            ) : docs.length === 0 ? (
+            ) : visibleDocs.length === 0 ? (
               <div className="m-[0_18px_16px] rounded-control border border-dashed border-border px-4 py-5 text-center text-[12px] text-text-sub">
                 Nothing here yet — your first upload appears in this list.
               </div>
             ) : (
-              docs.map((d) => (
+              visibleDocs.map((d) => (
                 <div
                   key={d.id}
                   className="border-t border-hairline px-[18px] py-3 hover:bg-[#f8fafc]"
@@ -362,5 +391,13 @@ export default function DocumentsPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function DocumentsPage() {
+  return (
+    <Suspense>
+      <DocumentsPageInner />
+    </Suspense>
   );
 }

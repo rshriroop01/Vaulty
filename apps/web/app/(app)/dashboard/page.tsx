@@ -145,9 +145,10 @@ export default async function DashboardPage() {
             <div className="mb-3 text-[14px] font-semibold">Vault</div>
             <div className="grid grid-cols-2 gap-[9px]">
               {CATEGORIES.map((c) => (
-                <div
+                <Link
                   key={c.key}
-                  className="flex items-center gap-[9px] rounded-control border border-hairline px-[11px] py-[9px]"
+                  href={`/documents?category=${c.key}`}
+                  className="flex items-center gap-[9px] rounded-control border border-hairline px-[11px] py-[9px] hover:border-ink"
                 >
                   <span
                     className="h-[9px] w-[9px] flex-none rounded-[2px]"
@@ -157,7 +158,7 @@ export default async function DashboardPage() {
                   <span className="ml-auto font-mono text-[11.5px] text-text-faint">
                     {usage?.categories?.[c.key] ?? 0}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
