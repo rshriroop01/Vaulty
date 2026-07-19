@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE_URL, tryRefreshSession } from "@/lib/api";
 import { Field, FormError, GoogleButton, OrDivider, PrimaryButton } from "@/components/auth/fields";
 
-export default function SignInPage() {
+function SignInPageInner() {
   const router = useRouter();
+  const next = useSearchParams().get("next") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -16,11 +17,11 @@ export default function SignInPage() {
   useEffect(() => {
     void tryRefreshSession().then((ok) => {
       if (ok) {
-        router.replace("/dashboard");
+        router.replace(next);
         router.refresh();
       }
     });
-  }, [router]);
+  }, [router, next]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,7 +35,7 @@ export default function SignInPage() {
       body: JSON.stringify({ email: form.get("email"), password: form.get("password") }),
     }).catch(() => null);
     if (res?.ok) {
-      router.push("/dashboard");
+      router.push(next);
       router.refresh();
       return;
     }
@@ -85,5 +86,13 @@ export default function SignInPage() {
         If 2FA is enabled, a 6-digit code step follows.
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense>
+      <SignInPageInner />
+    </Suspense>
   );
 }

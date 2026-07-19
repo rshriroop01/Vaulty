@@ -41,7 +41,13 @@ async def search(
     q: str = Query(min_length=1, max_length=200),
     category: DocumentCategory | None = None,
 ) -> SearchResponse:
-    outcome = await search_documents(db, ctx.vault.id, q, category.value if category else None)
+    outcome = await search_documents(
+        db,
+        ctx.vault.id,
+        q,
+        category.value if category else None,
+        visible_categories=ctx.visible_categories(),
+    )
     return SearchResponse(
         query=q,
         latency_ms=outcome.latency_ms,

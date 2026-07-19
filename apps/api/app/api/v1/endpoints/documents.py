@@ -74,6 +74,8 @@ async def _get_owned(db: DbSession, ctx: CurrentVault, document_id: UUID) -> Doc
     doc = await db.get(Document, document_id)
     if doc is None or doc.vault_id != ctx.vault.id:
         raise NotFoundError("Document not found")
+    if ctx.category_access(doc.category.value) == "none":
+        raise NotFoundError("Document not found")  # invisible per the access matrix
     return doc
 
 
@@ -203,6 +205,9 @@ async def list_documents(
         Document.vault_id == ctx.vault.id,
         Document.status != DocumentStatus.pending_upload,
     )
+    visible = ctx.visible_categories()
+    if visible is not None:
+        stmt = stmt.where(Document.category.in_(visible))
     if category is not None:
         stmt = stmt.where(Document.category == category)
     rows = await db.scalars(stmt.order_by(Document.created_at.desc()).limit(200))
@@ -216,6 +221,8 @@ async def patch_document(
     if not ctx.can_write:
         raise ForbiddenError("Your role cannot edit documents")
     doc = await _get_owned(db, ctx, document_id)
+    if ctx.category_access(doc.category.value) != "full":
+        raise ForbiddenError("View-only access to this category")
     if body.bill_status is not None and body.bill_status not in BILL_STATUSES:
         raise AppError(f"bill_status must be one of {sorted(BILL_STATUSES)}")
 
@@ -268,6 +275,8 @@ async def delete_document(
     if not ctx.can_write:
         raise ForbiddenError("Your role cannot delete documents")
     doc = await _get_owned(db, ctx, document_id)
+    if ctx.category_access(doc.category.value) != "full":
+        raise ForbiddenError("View-only access to this category")
     await storage.delete_object(doc.file_key)
     await db.delete(doc)
     await audit.record(

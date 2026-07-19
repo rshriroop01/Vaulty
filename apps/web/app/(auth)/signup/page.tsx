@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api";
 import { Field, FormError, GoogleButton, OrDivider, PrimaryButton } from "@/components/auth/fields";
 
-export default function SignUpPage() {
+function SignUpPageInner() {
   const router = useRouter();
+  const next = useSearchParams().get("next") ?? "/dashboard";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -27,7 +28,7 @@ export default function SignUpPage() {
       }),
     }).catch(() => null);
     if (res?.ok) {
-      router.push("/dashboard");
+      router.push(next);
       router.refresh();
       return;
     }
@@ -93,5 +94,13 @@ export default function SignUpPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpPageInner />
+    </Suspense>
   );
 }

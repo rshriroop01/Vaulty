@@ -8,13 +8,22 @@ export function Sidebar({
   storageUsed,
   storagePct,
   remindersCount = 0,
+  vaults = [],
+  currentVaultId,
 }: {
   plan: string;
   storageUsed: string;
   storagePct: number;
   remindersCount?: number;
+  vaults?: { id: string; name: string }[];
+  currentVaultId?: string;
 }) {
   const pathname = usePathname();
+
+  function switchVault(id: string) {
+    document.cookie = `vaultly_vault=${id}; path=/; max-age=31536000; samesite=lax`;
+    window.location.assign("/dashboard");
+  }
   const NAV = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Documents", href: "/documents" },
@@ -32,6 +41,22 @@ export function Sidebar({
         </div>
         <span className="text-base font-bold tracking-[-0.01em]">Vaultly</span>
       </div>
+      {vaults.length > 1 && (
+        <div className="mx-2.5 mb-3">
+          <select
+            value={currentVaultId}
+            onChange={(e) => switchVault(e.target.value)}
+            aria-label="Switch vault"
+            className="w-full rounded-[7px] border border-input-border bg-app px-2.5 py-[7px] text-[12.5px] font-medium outline-none focus:border-ink"
+          >
+            {vaults.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {NAV.map((item) => {
         const active = pathname.startsWith(item.href);
         return (

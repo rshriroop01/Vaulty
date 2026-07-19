@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = ["http://localhost:3000"]
+    frontend_url: str = "http://localhost:3000"  # invite + emergency links in emails
 
     # Auth. secret_key MUST be overridden outside local/test (validated at startup).
     secret_key: str = "dev-only-secret-change-me"  # noqa: S105 — dev default, blocked in prod

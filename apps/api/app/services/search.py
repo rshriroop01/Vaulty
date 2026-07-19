@@ -82,7 +82,11 @@ class SearchOutcome:
 
 
 async def search_documents(
-    db: AsyncSession, vault_id: UUID, q: str, category: str | None = None
+    db: AsyncSession,
+    vault_id: UUID,
+    q: str,
+    category: str | None = None,
+    visible_categories: list[str] | None = None,
 ) -> SearchOutcome:
     started = time.perf_counter()
     terms = _terms(q)
@@ -93,6 +97,8 @@ async def search_documents(
         Document.vault_id == vault_id,
         Document.status != DocumentStatus.pending_upload,
     ]
+    if visible_categories is not None:
+        base_filter.append(Document.category.in_(visible_categories))
     ilike_any = or_(*[Document.search_text.ilike(f"%{t}%") for t in terms])
 
     if db.get_bind().dialect.name == "postgresql":

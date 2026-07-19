@@ -72,11 +72,20 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
 - **Exit met:** real policy + hospital-bill PDFs extracted into a working policy card
   and claims row; status cycled and persisted; all four PRD V1 modules usable
 
-## M7 — Family sharing & emergency binder · *screens 2i, 2h*
-- Multi-member vaults, invites, role dropdowns, category-access matrix (full/view/none)
-- Emergency binder: contents checklist, QR with signed time-limited revocable token + PIN,
-  every scan notifies owner + writes audit log; delegate list + access log
-- **Exit:** PRD Emergency journey works end-to-end without account credentials
+## M7 — Family sharing & emergency binder ✅ (shipped 2026-07-15) · *screens 2i, 2h*
+- Emailed invites (hashed tokens, 7-day expiry, single-use) → accept page → membership;
+  role dropdowns (admin/member/emergency-only), owner-only role management, 6-seat cap
+- Category-access matrix (full/view/none) per member, enforced across documents list,
+  search, download, edit, and delete; emergency-only members see nothing by default
+- Multi-vault support: X-Vault-ID header / vaultly_vault cookie selection + sidebar
+  vault switcher; sign-in/up honor ?next= for invite deep links
+- Emergency binder (2h): contacts/medical/delegates editor, checklist derived from
+  binder + vault contents, QR card (client-generated, printable, shown once), revocable
+  argon2-PIN tokens, public /e/{token} page; every scan or failed PIN is audit-logged
+  and emailed to owners
+- **Exit met:** full journey verified live — invite email → spouse signup → member of
+  family vault; QR + PIN → public binder with contacts, blood group, and the real ACME
+  policy, zero credentials; owner notified, access log populated
 
 ## M8 — AI assistant · *screen 2c answer card*
 - Claude-backed Q&A over the user's corpus ("VAULTLY ANSWER" card, source citations,

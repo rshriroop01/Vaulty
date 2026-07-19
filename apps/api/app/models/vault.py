@@ -5,6 +5,7 @@ from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
+from app.models.audit import PortableJSON
 
 
 class VaultPlan(enum.StrEnum):
@@ -49,5 +50,7 @@ class VaultMembership(Base, TimestampMixin):
         Enum(VaultRole, name="vault_role", native_enum=False, length=20),
         default=VaultRole.member,
     )
+    # M7 access matrix (screen 2i): {category: "full"|"view"|"none"}; null = role default
+    category_access: Mapped[dict[str, str] | None] = mapped_column(PortableJSON, nullable=True)
 
     vault: Mapped[Vault] = relationship(back_populates="memberships")

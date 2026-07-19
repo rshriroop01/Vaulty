@@ -22,6 +22,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         storageUsed={formatBytes(used)}
         storagePct={pct}
         remindersCount={reminderStats?.needs_attention ?? 0}
+        vaults={me.vaults.map((v) => ({ id: v.id, name: v.name }))}
+        currentVaultId={usage?.vault_id ?? me.vaults[0]?.id}
       />
       <main className="min-w-0 flex-1 p-[24px_32px_32px]">{children}</main>
       <CommandK />
