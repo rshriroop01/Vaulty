@@ -30,3 +30,6 @@ next-env.d.ts
 # Terraform
 .terraform/
 *.tfstate*
+
+# Celery beat runtime state
+apps/api/celerybeat-schedule
