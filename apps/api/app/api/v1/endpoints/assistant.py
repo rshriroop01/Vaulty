@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from app.api.deps import CurrentVault, DbSession
 from app.core import audit
-from app.core.errors import AppError, ForbiddenError
+from app.core.errors import AppError, ForbiddenError, PlanUpgradeRequiredError
 from app.core.feature_flags import is_enabled
 from app.models import VaultPlan
 from app.services.assistant import (
@@ -39,12 +39,6 @@ FLAG_KEY = "assistant"
 
 class AssistantDisabledError(ForbiddenError):
     pass
-
-
-class PlanUpgradeRequiredError(AppError):
-    status_code = 403
-    title = "Upgrade Required"
-    error_type = "https://vaultly.app/problems/plan-upgrade-required"
 
 
 class AssistantUnavailableError(AppError):

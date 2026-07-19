@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     smtp_port: int = 1025
     email_from: str = "reminders@vaultly.local"
 
+    # Billing (M9). Empty secret key = billing unconfigured (503), mirrors the
+    # assistant's no-API-key behavior. Price ids map Stripe prices -> VaultPlan.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_premium: str = ""
+    stripe_price_family: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

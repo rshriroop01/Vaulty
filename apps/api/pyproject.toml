@@ -19,6 +19,7 @@ dependencies = [
     "email-validator>=2.2",
     "boto3>=1.35",
     "anthropic>=0.60",
+    "stripe>=10.0",
 ]
 
 [project.optional-dependencies]

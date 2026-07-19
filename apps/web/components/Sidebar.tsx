@@ -32,6 +32,7 @@ export function Sidebar({
     { label: "Medical bills", href: "/medical" },
     { label: "Emergency binder", href: "/emergency" },
     { label: "Family", href: "/family" },
+    { label: "Billing", href: "/billing" },
   ];
   return (
     <aside className="flex w-[232px] flex-none flex-col border-r border-border bg-card py-5">

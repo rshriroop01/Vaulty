@@ -12,14 +12,14 @@ from sqlalchemy import func, select
 from app.api.deps import ACCESS_LEVELS, CurrentUser, CurrentVault, DbSession
 from app.core import audit
 from app.core.config import get_settings
-from app.core.errors import AppError, ForbiddenError, NotFoundError
-from app.models import User, Vault, VaultInvite, VaultMembership, VaultRole
+from app.core.errors import AppError, ForbiddenError, NotFoundError, PlanUpgradeRequiredError
+from app.models import User, Vault, VaultInvite, VaultMembership, VaultPlan, VaultRole
 from app.services.email import get_email_provider
 
 router = APIRouter()
 logger = structlog.get_logger("family")
 
-MAX_MEMBERS = 6  # family plan ceiling (PRD); plan gating tightens at M9
+MAX_MEMBERS = 6  # family plan ceiling (PRD)
 INVITE_TTL_DAYS = 7
 INVITABLE_ROLES = {"admin", "member", "emergency"}
 
@@ -111,6 +111,10 @@ async def list_members(db: DbSession, ctx: CurrentVault) -> MembersResponse:
 async def create_invite(body: InviteCreate, db: DbSession, ctx: CurrentVault) -> InviteOut:
     if ctx.role not in (VaultRole.owner, VaultRole.admin):
         raise ForbiddenError("Only owners and admins can invite")
+    if ctx.vault.plan != VaultPlan.family:
+        raise PlanUpgradeRequiredError(
+            "Adding members requires the Family plan — upgrade to invite people to your vault."
+        )
     if body.role not in INVITABLE_ROLES:
         raise AppError(f"Role must be one of {sorted(INVITABLE_ROLES)}")
 

@@ -1,4 +1,5 @@
 from app.models.audit import AuditLog
+from app.models.billing import BillingCustomer, StripeEvent
 from app.models.document import Document, DocumentCategory, DocumentStatus
 from app.models.family import EmergencyBinder, EmergencyToken, VaultInvite
 from app.models.feature_flag import FeatureFlag
@@ -9,6 +10,7 @@ from app.models.vault import Vault, VaultMembership, VaultPlan, VaultRole
 
 __all__ = [
     "AuditLog",
+    "BillingCustomer",
     "Document",
     "DocumentCategory",
     "DocumentStatus",
@@ -24,4 +26,5 @@ __all__ = [
     "VaultMembership",
     "VaultPlan",
     "VaultRole",
+    "StripeEvent",
 ]

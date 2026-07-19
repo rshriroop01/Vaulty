@@ -114,9 +114,40 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
   a fake model asked to cite another vault's document id has that id stripped by the
   guardrail post-filter (verified in tests, not just retrieval scoping)
 
-## M9 — Billing & tiers
-- Stripe subscriptions (Free/Premium/Family), quota upgrades, dunning, customer portal
-- **Exit:** a family can pay $14.99/mo and add 6 members
+## M9 — Billing & tiers ✅ (shipped 2026-07-20)
+- Stripe subscriptions behind a `BillingProvider` Protocol (mirrors M8's `AssistantProvider`):
+  `StripeBilling` wraps `checkout.Session`/`billing_portal.Session`/`Webhook.construct_event`,
+  injected via `get_billing()` so tests never touch the network; `Vault.plan` is written only
+  from a verified webhook event, never from client input — checkout/portal endpoints just
+  redirect to Stripe-hosted pages
+- `billing_customers` (vault ↔ Stripe customer/subscription linkage) and `stripe_events`
+  (webhook idempotency ledger — event id inserted before processing; a conflict short-circuits
+  to 200 without reprocessing) added in migration 0010; quotas (`app/core/quotas.py`) already
+  reacted to `Vault.plan` since M1–M6, so this milestone is entirely about moving that one field
+- `POST /billing/checkout` (owner-only, else 403) and `/billing/portal` create/reuse the
+  `BillingCustomer` row and redirect; `GET /billing/summary` reports plan, subscription status,
+  member count, and usage vs. plan limits. All three gate on configured Stripe keys the same
+  way the assistant gates on an Anthropic key — empty `STRIPE_SECRET_KEY` → RFC 7807 503, not a 500
+- `POST /billing/webhook` is unauthenticated by design (Stripe is the caller, authenticated via
+  the signed payload, not a session cookie) and never 500s Stripe: `checkout.session.completed`
+  flips the plan (price id carried in session metadata, mapped via a pure `price_for_plan`/
+  `plan_for_price` helper), `customer.subscription.updated` syncs status and keeps the plan
+  through a `past_due` dunning window (audits `billing.payment_failed` on the transition),
+  `customer.subscription.deleted` downgrades to free; every handler tolerates an unknown
+  customer/vault by logging and returning 200
+- Family invites (`app/api/v1/endpoints/family.py`) now gate a NEW invite on
+  `Vault.plan == family` (RFC 7807 403 `.../plan-upgrade-required`) — the 6-seat `MAX_MEMBERS`
+  cap from M7 is unchanged, existing memberships/role management/emergency binder untouched
+- Frontend: `/billing` page (three plan cards, current-plan badge, usage line, Stripe Checkout/
+  portal redirects, owner-only actions disabled with a hint for non-owners, mono font for every
+  price/date/number per the Ledger system) and a Family-page upsell card (matches
+  `AnswerUpgradeCard`'s dashed-card styling) when an invite 403s on `plan-upgrade-required`
+- **Exit met:** a free vault flipped to Family via a signed-webhook simulation, then the real
+  M7 invite/accept flow filled all 6 member seats and a 7th invite was rejected by
+  `MAX_MEMBERS` — verified end-to-end in `tests/test_billing.py`'s exit-criterion test. Caveat:
+  Stripe is mocked throughout (a `BillingProvider` fake, never the real SDK/network) — no live
+  Stripe keys are present in this environment, so the real Checkout/portal redirect and real
+  webhook signature verification are unverified against Stripe's actual servers
 
 ## M10 — Hardening & launch
 - Terraform for production infra, staging environment, backups + restore drill,

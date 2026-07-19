@@ -47,6 +47,15 @@ class ConflictError(AppError):
     title = "Conflict"
 
 
+class PlanUpgradeRequiredError(AppError):
+    """Feature gated behind a paid plan (PRD business model). The distinct
+    `type` lets the frontend render an upsell card instead of a plain error."""
+
+    status_code = 403
+    title = "Upgrade Required"
+    error_type = "https://vaultly.app/problems/plan-upgrade-required"
+
+
 def _problem(request: Request, status: int, title: str, detail: str, type_: str) -> JSONResponse:
     body = {
         "type": type_,

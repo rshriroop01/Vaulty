@@ -4,6 +4,8 @@
  *  category-access matrix (cells cycle full → view → none). */
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ApiError } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
 import {
   createInvite,
@@ -13,6 +15,30 @@ import {
   type Member,
   type MembersResponse,
 } from "@/lib/family";
+
+const PLAN_UPGRADE_TYPE_SUFFIX = "/plan-upgrade-required";
+
+/** Matches components/AnswerCard.tsx's AnswerUpgradeCard styling (dashed
+ *  navy-adjacent card) — that component only takes a bare detail string, so
+ *  this adds the "Upgrade" link the invite flow needs. */
+function FamilyPlanUpsell({ detail }: { detail: string }) {
+  return (
+    <div className="mb-4 flex items-center justify-between rounded-card border border-dashed border-border bg-card px-6 py-5">
+      <div>
+        <div className="text-[10.5px] font-semibold uppercase tracking-[.1em] text-text-faint">
+          Family plan required
+        </div>
+        <p className="mt-1.5 text-[13px] text-text-sub">{detail}</p>
+      </div>
+      <Link
+        href="/billing"
+        className="ml-4 flex-none rounded-control bg-ink px-4 py-[10px] text-[13px] font-semibold text-white"
+      >
+        Upgrade
+      </Link>
+    </div>
+  );
+}
 
 const ROLES = ["admin", "member", "emergency"] as const;
 const ROLE_LABELS: Record<string, string> = {
@@ -47,6 +73,7 @@ function defaultAccess(member: Member, category: string): string {
 export default function FamilyPage() {
   const [data, setData] = useState<MembersResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [upsell, setUpsell] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -108,18 +135,29 @@ export default function FamilyPage() {
         </div>
       )}
 
+      {upsell && <FamilyPlanUpsell detail={upsell} />}
+
       {inviteOpen && (
         <form
           onSubmit={async (e) => {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
             setError(null);
+            setUpsell(null);
             try {
               await createInvite(String(form.get("email")), String(form.get("role")));
               setInviteOpen(false);
               void refresh();
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Invite failed");
+              if (
+                err instanceof ApiError &&
+                err.status === 403 &&
+                err.type?.endsWith(PLAN_UPGRADE_TYPE_SUFFIX)
+              ) {
+                setUpsell(err.message);
+              } else {
+                setError(err instanceof Error ? err.message : "Invite failed");
+              }
             }
           }}
           className="mb-4 flex items-end gap-3 rounded-[10px] border border-border bg-card px-[18px] py-4"

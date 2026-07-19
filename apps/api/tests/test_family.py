@@ -1,11 +1,33 @@
+from uuid import UUID
+
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.api.v1.endpoints.family as family_endpoint
+from app.models import Vault, VaultPlan
 from tests.test_documents import SIGNUP, FakeStorage, _upload
 
 SPOUSE = {"name": "Priya Roy", "email": "priya@example.com", "password": "spouse-pass-1"}
+
+
+async def _session(app: FastAPI) -> AsyncSession:
+    from app.db.session import get_db_session
+
+    factory = app.dependency_overrides[get_db_session]
+    return await factory().__anext__()  # type: ignore[no-any-return]
+
+
+async def _set_plan(app: FastAPI, vault_id: str, plan: VaultPlan) -> None:
+    """Family invites are gated on the Family plan as of M9 — tests that just
+    want to exercise the invite/membership flow bump the vault straight there
+    rather than going through a real (fake-provider) checkout."""
+    db = await _session(app)
+    vault = await db.get(Vault, UUID(vault_id))
+    assert vault is not None
+    vault.plan = plan
+    await db.commit()
 
 
 class CapturingEmail:
@@ -45,15 +67,18 @@ def _invite_token(emails: CapturingEmail) -> str:
 
 
 async def _invite_and_join(
-    client: AsyncClient, emails: CapturingEmail, role: str = "member"
+    app: FastAPI, client: AsyncClient, emails: CapturingEmail, role: str = "member"
 ) -> str:
     """Owner invites the spouse; spouse signs up + accepts. Returns family vault id.
-    Leaves the client logged in as the spouse with the family vault selected."""
+    Leaves the client logged in as the spouse with the family vault selected.
+
+    Bumps the vault to the Family plan first — M9 gates new invites on it."""
+    vault_id = (await client.get("/api/v1/vault/usage")).json()["vault_id"]
+    await _set_plan(app, vault_id, VaultPlan.family)
     resp = await client.post(
         "/api/v1/family/invites", json={"email": SPOUSE["email"], "role": role}
     )
     assert resp.status_code == 201, resp.text
-    vault_id = (await client.get("/api/v1/vault/usage")).json()["vault_id"]
     token = _invite_token(emails)
 
     client.cookies.clear()
@@ -67,8 +92,10 @@ async def _invite_and_join(
     return vault_id
 
 
-async def test_invite_accept_and_vault_switch(owner: AsyncClient, emails: CapturingEmail) -> None:
-    vault_id = await _invite_and_join(owner, emails)
+async def test_invite_accept_and_vault_switch(
+    app: FastAPI, owner: AsyncClient, emails: CapturingEmail
+) -> None:
+    vault_id = await _invite_and_join(app, owner, emails)
     # Spouse now sees the family vault via the cookie
     usage = (await owner.get("/api/v1/vault/usage")).json()
     assert usage["vault_id"] == vault_id
@@ -81,7 +108,11 @@ async def test_invite_accept_and_vault_switch(owner: AsyncClient, emails: Captur
     assert roles[SPOUSE["email"]] == "member"
 
 
-async def test_invite_cannot_be_reused(owner: AsyncClient, emails: CapturingEmail) -> None:
+async def test_invite_cannot_be_reused(
+    app: FastAPI, owner: AsyncClient, emails: CapturingEmail
+) -> None:
+    vault_id = (await owner.get("/api/v1/vault/usage")).json()["vault_id"]
+    await _set_plan(app, vault_id, VaultPlan.family)
     await owner.post("/api/v1/family/invites", json={"email": SPOUSE["email"], "role": "member"})
     token = _invite_token(emails)
     owner.cookies.clear()
@@ -90,8 +121,10 @@ async def test_invite_cannot_be_reused(owner: AsyncClient, emails: CapturingEmai
     assert (await owner.post(f"/api/v1/family/invites/{token}/accept")).status_code == 404
 
 
-async def test_member_cannot_invite(owner: AsyncClient, emails: CapturingEmail) -> None:
-    await _invite_and_join(owner, emails, role="member")
+async def test_member_cannot_invite(
+    app: FastAPI, owner: AsyncClient, emails: CapturingEmail
+) -> None:
+    await _invite_and_join(app, owner, emails, role="member")
     resp = await owner.post(
         "/api/v1/family/invites", json={"email": "third@example.com", "role": "member"}
     )
@@ -99,10 +132,10 @@ async def test_member_cannot_invite(owner: AsyncClient, emails: CapturingEmail) 
 
 
 async def test_owner_changes_role_and_matrix(
-    owner: AsyncClient, emails: CapturingEmail, storage: FakeStorage
+    app: FastAPI, owner: AsyncClient, emails: CapturingEmail, storage: FakeStorage
 ) -> None:
     doc = await _upload(owner, storage)  # owner's doc, category "other"
-    vault_id = await _invite_and_join(owner, emails)
+    vault_id = await _invite_and_join(app, owner, emails)
 
     # Spouse (member) sees the doc by default
     listed = (await owner.get("/api/v1/documents")).json()
@@ -134,10 +167,10 @@ async def test_owner_changes_role_and_matrix(
 
 
 async def test_view_access_blocks_editing(
-    owner: AsyncClient, emails: CapturingEmail, storage: FakeStorage
+    app: FastAPI, owner: AsyncClient, emails: CapturingEmail, storage: FakeStorage
 ) -> None:
     doc = await _upload(owner, storage)
-    vault_id = await _invite_and_join(owner, emails)
+    vault_id = await _invite_and_join(app, owner, emails)
 
     owner.cookies.clear()
     await owner.post(
@@ -162,6 +195,17 @@ async def test_view_access_blocks_editing(
     assert (
         await owner.patch(f"/api/v1/documents/{doc['id']}", json={"title": "x"})
     ).status_code == 403
+
+
+async def test_free_vault_invite_requires_family_plan(owner: AsyncClient) -> None:
+    # Default vault from signup stays on the free plan — M9 gates new invites.
+    resp = await owner.post(
+        "/api/v1/family/invites", json={"email": SPOUSE["email"], "role": "member"}
+    )
+    assert resp.status_code == 403
+    body = resp.json()
+    assert body["type"].endswith("/plan-upgrade-required")
+    assert "family" in body["detail"].lower()
 
 
 async def test_owner_cannot_change_self(owner: AsyncClient) -> None:
