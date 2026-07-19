@@ -5,6 +5,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly title: string,
     detail: string,
+    public readonly type?: string,
   ) {
     super(detail);
   }
@@ -39,7 +40,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     const problem = await res
       .json()
       .catch(() => ({ title: res.statusText, detail: res.statusText }));
-    throw new ApiError(res.status, problem.title, problem.detail);
+    throw new ApiError(res.status, problem.title, problem.detail, problem.type);
   }
   return res.json() as Promise<T>;
 }

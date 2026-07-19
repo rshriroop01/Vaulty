@@ -87,11 +87,32 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
   family vault; QR + PIN → public binder with contacts, blood group, and the real ACME
   policy, zero credentials; owner notified, access log populated
 
-## M8 — AI assistant · *screen 2c answer card*
-- Claude-backed Q&A over the user's corpus ("VAULTLY ANSWER" card, source citations,
-  action buttons that create reminders / open docs)
-- Guardrails: vault-scoped retrieval only; answers cite sources; no cross-tenant leakage
-- **Exit:** "Which warranties expire next month?" answers correctly with sources
+## M8 — AI assistant ✅ (shipped 2026-07-19) · *screen 2c answer card*
+- Claude-backed Q&A over the user's corpus behind a `RetrievalProvider` interface —
+  `FtsRetrieval` reuses the M4 search service, always filtered by vault id + the M7
+  visible-categories matrix; pgvector semantic retrieval stays deferred until an
+  embedding provider key exists (Voyage — Anthropic has no embeddings API), same call
+  made in M4
+- `ClaudeAssistant` mirrors the M3 extractor: sync class, `messages.parse` structured
+  output (`AssistantAnswer`: answer, citations, suggested actions), run off the event
+  loop via `anyio.to_thread.run_sync`
+- Guardrail post-filter (pure, unit-tested): any citation or suggested-action document
+  id not in the retrieved set is dropped before the response leaves the service —
+  the model's own ids are never trusted, closing off both hallucination and
+  cross-tenant leakage even if retrieval were ever misconfigured
+- Gated: `assistant` feature flag (seeded on via migration 0009), then Premium/Family
+  plan (free vault → RFC 7807 403 `.../plan-upgrade-required` for the frontend upsell
+  card), then a configured Anthropic key (missing → 503). `assistant.ask` audit-logged
+  with question length + retrieved count, never the question text
+- Search page (2c): navy "VAULTLY ANSWER" card fires alongside search — answer,
+  source-count, citation chips, "Create reminder" (posts to the existing reminders
+  API) / "Open document" actions; plain pending state, no card at all when the flag
+  is off or the key is missing; ⌘K's ask bar already routed into `/search?q=`, so it
+  reaches the same answer card with no changes needed
+- **Exit met:** premium vault + a receipt/warranty in the corpus → asking about it
+  returns a cited, source-linked answer; a free vault gets the upgrade card instead;
+  a fake model asked to cite another vault's document id has that id stripped by the
+  guardrail post-filter (verified in tests, not just retrieval scoping)
 
 ## M9 — Billing & tiers
 - Stripe subscriptions (Free/Premium/Family), quota upgrades, dunning, customer portal

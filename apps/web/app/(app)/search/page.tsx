@@ -7,8 +7,10 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { searchDocuments, type SearchResponse } from "@/lib/search";
+import { askAssistantOutcome, type AskOutcome } from "@/lib/assistant";
 import { CATEGORIES, categoryLabel, formatBytes } from "@/lib/categories";
 import { Mark } from "@/components/Mark";
+import { AnswerCard, AnswerCardLoading, AnswerUpgradeCard } from "@/components/AnswerCard";
 
 function SearchPageInner() {
   const params = useSearchParams();
@@ -18,6 +20,8 @@ function SearchPageInner() {
   const [category, setCategory] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [assistant, setAssistant] = useState<AskOutcome | null>(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
 
   const run = useCallback(async (query: string, cat: string | null) => {
     if (!query.trim()) return;
@@ -31,9 +35,29 @@ function SearchPageInner() {
     }
   }, []);
 
+  // Fired once per fresh query submission (not on category-chip clicks, which
+  // reuse the same `submitted` text against results already in hand).
+  const ask = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setAssistant(null);
+      return;
+    }
+    setAssistantLoading(true);
+    try {
+      setAssistant(await askAssistantOutcome(query));
+    } catch {
+      setAssistant(null);
+    } finally {
+      setAssistantLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (initialQ) void run(initialQ, null);
-  }, [initialQ, run]);
+    if (initialQ) {
+      void run(initialQ, null);
+      void ask(initialQ);
+    }
+  }, [initialQ, run, ask]);
 
   const chips = response ? CATEGORIES.filter((c) => (response.counts[c.key] ?? 0) > 0) : [];
 
@@ -45,6 +69,7 @@ function SearchPageInner() {
           setSubmitted(q);
           setCategory(null);
           void run(q, null);
+          void ask(q);
         }}
         className="mb-[18px] flex items-center gap-2.5 rounded-[9px] border-[1.5px] border-ink bg-card px-4 py-3 shadow-[0_1px_3px_rgba(22,50,79,.08)]"
       >
@@ -61,6 +86,12 @@ function SearchPageInner() {
           </span>
         )}
       </form>
+
+      {assistantLoading && <AnswerCardLoading />}
+      {!assistantLoading && assistant?.kind === "answer" && <AnswerCard data={assistant.data} />}
+      {!assistantLoading && assistant?.kind === "upgrade" && (
+        <AnswerUpgradeCard detail={assistant.detail} />
+      )}
 
       {response && (
         <div className="mb-3.5 flex flex-wrap gap-2">

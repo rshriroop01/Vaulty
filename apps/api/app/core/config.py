@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     # AI extraction (M3+). Empty key = extraction disabled, uploads still work.
     anthropic_api_key: str = ""
     extraction_model: str = "claude-opus-4-8"
+    # AI assistant (M8). Same key as extraction; empty = assistant unavailable (503).
+    assistant_model: str = "claude-opus-4-8"
 
     # Email (Mailpit locally, SES/Resend in production)
     smtp_host: str = "localhost"
