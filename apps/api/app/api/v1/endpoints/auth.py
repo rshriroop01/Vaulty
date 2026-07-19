@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Cookie, Response
+from fastapi import APIRouter, Cookie, Depends, Response
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import select
 
@@ -11,6 +11,7 @@ from app.api.deps import ACCESS_COOKIE, REFRESH_COOKIE, CurrentUser, DbSession
 from app.core import audit
 from app.core.config import get_settings
 from app.core.errors import ConflictError, UnauthorizedError
+from app.core.rate_limit import rate_limit_login, rate_limit_signup
 from app.core.security import (
     create_access_token,
     hash_password,
@@ -111,7 +112,12 @@ async def _me(db: DbSession, user: User) -> MeResponse:
     )
 
 
-@router.post("/signup", response_model=MeResponse, status_code=201)
+@router.post(
+    "/signup",
+    response_model=MeResponse,
+    status_code=201,
+    dependencies=[Depends(rate_limit_signup)],
+)
 async def signup(body: SignupRequest, db: DbSession, response: Response) -> MeResponse:
     email = body.email.lower()
     if await db.scalar(select(User).where(User.email == email)):
@@ -134,7 +140,7 @@ async def signup(body: SignupRequest, db: DbSession, response: Response) -> MeRe
     return await _me(db, user)
 
 
-@router.post("/login", response_model=MeResponse)
+@router.post("/login", response_model=MeResponse, dependencies=[Depends(rate_limit_login)])
 async def login(body: LoginRequest, db: DbSession, response: Response) -> MeResponse:
     email = body.email.lower()
     user = await db.scalar(select(User).where(User.email == email))

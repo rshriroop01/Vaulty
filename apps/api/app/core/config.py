@@ -58,6 +58,17 @@ class Settings(BaseSettings):
     stripe_price_premium: str = ""
     stripe_price_family: str = ""
 
+    # Rate limiting (M10 hardening): Redis-backed fixed window, per app/core/rate_limit.py.
+    # Fails open (allows the request) if Redis is unreachable — availability over
+    # strictness. Disabled by default in the test environment; tests that exercise the
+    # limiter opt in explicitly (see tests/test_rate_limit.py).
+    rate_limit_auth_per_minute: int = 10
+    rate_limit_assistant_per_minute: int = 20
+    rate_limit_emergency_per_minute: int = 5
+
+    # Sentry (M10 hardening). Empty DSN = disabled, zero behavior change (app/main.py).
+    sentry_dsn: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

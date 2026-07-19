@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+# Nothing in here is a secret — actual credentials live in Secrets Manager,
+# populated out-of-band after `terraform apply` (see ../../README.md).
+
+aws_region      = "us-east-1"
+route53_zone_id = "Z0123456789ABCDEFGHIJ" # existing hosted zone for vaultly.example.com
+
+web_domain_name = "vaultly.example.com"
+api_domain_name = "api.vaultly.example.com"
+ses_domain      = "vaultly.example.com"
+email_from      = "reminders@vaultly.example.com"
+
+cors_allowed_origins = ["https://vaultly.example.com"]
+
+# Push images to the ECR repos this stack creates (see README "Building and
+# pushing images"), then point these at the pushed tag/digest. Prefer an
+# immutable digest (repo@sha256:...) for prod releases over a mutable tag.
+image_web = "123456789012.dkr.ecr.us-east-1.amazonaws.com/vaultly-prod/web:latest"
+image_api = "123456789012.dkr.ecr.us-east-1.amazonaws.com/vaultly-prod/api:latest"

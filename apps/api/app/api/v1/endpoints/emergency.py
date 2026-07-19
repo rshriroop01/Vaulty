@@ -6,13 +6,14 @@ from uuid import UUID
 
 import anyio.to_thread
 import structlog
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentVault, DbSession
 from app.core import audit
 from app.core.errors import ForbiddenError, NotFoundError, UnauthorizedError
+from app.core.rate_limit import rate_limit_emergency
 from app.core.security import hash_password, verify_password
 from app.models import (
     AuditLog,
@@ -275,7 +276,11 @@ async def _notify_owners(db: DbSession, vault: Vault, subject: str, body: str) -
             logger.exception("owner_notification_failed")
 
 
-@router.post("/access/{token}", response_model=PublicBinder)
+@router.post(
+    "/access/{token}",
+    response_model=PublicBinder,
+    dependencies=[Depends(rate_limit_emergency)],
+)
 async def public_access(token: str, body: PublicAccessRequest, db: DbSession) -> PublicBinder:
     """The PRD emergency journey: QR scan + PIN, no account credentials.
     Every attempt — granted or denied — is audit-logged; owners are notified."""

@@ -1,0 +1,12 @@
+# Root .gitignore already covers .terraform/ and *.tfstate*; these are
+# Terraform-specific extras scoped to this subtree.
+
+# Per-env real values — copied from the committed *.example files.
+backend.hcl
+terraform.tfvars
+*.auto.tfvars
+
+# Plan output, if ever saved locally.
+*.tfplan
+crash.log
+crash.*.log

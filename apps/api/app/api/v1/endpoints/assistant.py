@@ -19,6 +19,7 @@ from app.api.deps import CurrentVault, DbSession
 from app.core import audit
 from app.core.errors import AppError, ForbiddenError, PlanUpgradeRequiredError
 from app.core.feature_flags import is_enabled
+from app.core.rate_limit import rate_limit_assistant
 from app.models import VaultPlan
 from app.services.assistant import (
     AssistantProvider,
@@ -64,7 +65,7 @@ class AskResponse(BaseModel):
     latency_ms: int
 
 
-@router.post("/ask", response_model=AskResponse)
+@router.post("/ask", response_model=AskResponse, dependencies=[Depends(rate_limit_assistant)])
 async def ask(
     body: AskRequest,
     db: DbSession,

@@ -56,7 +56,29 @@ class PlanUpgradeRequiredError(AppError):
     error_type = "https://vaultly.app/problems/plan-upgrade-required"
 
 
-def _problem(request: Request, status: int, title: str, detail: str, type_: str) -> JSONResponse:
+class RateLimitedError(AppError):
+    """Raised by app/core/rate_limit.py when a fixed-window limit is exceeded
+    (M10 hardening: brute-force guard on auth, abuse guard on the assistant
+    and the public emergency-token endpoint). `retry_after` (seconds) is
+    surfaced as a `Retry-After` response header when known."""
+
+    status_code = 429
+    title = "Too Many Requests"
+    error_type = "https://vaultly.app/problems/rate-limited"
+
+    def __init__(self, detail: str = "Rate limit exceeded", retry_after: int | None = None) -> None:
+        super().__init__(detail)
+        self.retry_after = retry_after
+
+
+def _problem(
+    request: Request,
+    status: int,
+    title: str,
+    detail: str,
+    type_: str,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     body = {
         "type": type_,
         "title": title,
@@ -64,10 +86,19 @@ def _problem(request: Request, status: int, title: str, detail: str, type_: str)
         "detail": detail,
         "request_id": request.headers.get("X-Request-ID"),
     }
-    return JSONResponse(status_code=status, content=body, media_type=PROBLEM_CONTENT_TYPE)
+    return JSONResponse(
+        status_code=status, content=body, media_type=PROBLEM_CONTENT_TYPE, headers=headers
+    )
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RateLimitedError)
+    async def rate_limited_error_handler(request: Request, exc: RateLimitedError) -> JSONResponse:
+        headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
+        return _problem(
+            request, exc.status_code, exc.title, exc.detail, exc.error_type, headers=headers
+        )
+
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         return _problem(request, exc.status_code, exc.title, exc.detail, exc.error_type)

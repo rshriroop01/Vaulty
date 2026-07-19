@@ -1,14 +1,22 @@
+import os
 from collections.abc import AsyncIterator
 
-import pytest
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+# Must land before any app import touches Settings (get_settings is lru_cache'd
+# process-wide): the whole suite runs as ENVIRONMENT=test, which is what
+# app/core/rate_limit.py checks to disable rate limiting by default (M10
+# hardening) — tests that specifically exercise the limiter opt back in via
+# dependency overrides (see tests/test_rate_limit.py).
+os.environ.setdefault("ENVIRONMENT", "test")
 
-from app.db.base import Base
-from app.db.session import get_db_session
-from app.main import create_app
+import pytest  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+from app.db.base import Base  # noqa: E402
+from app.db.session import get_db_session  # noqa: E402
+from app.main import create_app  # noqa: E402
 
 
 @pytest.fixture

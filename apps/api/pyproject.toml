@@ -20,6 +20,7 @@ dependencies = [
     "boto3>=1.35",
     "anthropic>=0.60",
     "stripe>=10.0",
+    "sentry-sdk[fastapi]>=2.0",
 ]
 
 [project.optional-dependencies]

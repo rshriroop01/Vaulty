@@ -1,0 +1,12 @@
+# Copy to backend.hcl (gitignored) and fill in real values, then:
+#   terraform init -backend-config=backend.hcl
+#
+# The bucket and DynamoDB table below must already exist — Terraform can't
+# create the backend that stores its own state as part of this same stack.
+# See ../../README.md "Bootstrapping remote state" for the one-time setup.
+
+bucket         = "vaultly-terraform-state"
+key            = "vaultly/staging/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "vaultly-terraform-locks"
+encrypt        = true
