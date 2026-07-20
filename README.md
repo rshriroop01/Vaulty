@@ -142,7 +142,7 @@ docs/                  PRD, architecture, ADRs, roadmap, runbooks, launch checkl
 | M7 | Family sharing & emergency binder | ✅ Shipped |
 | M8 | AI assistant | ✅ Shipped |
 | M9 | Billing & tiers (Stripe) | ✅ Shipped |
-| M10 | Hardening & launch | 🔧 In progress — rate limiting, Terraform, runbooks landed; launch checklist open |
+| M10 | Hardening & launch | 🔧 Engineering landed — exit pending external steps (terraform apply, DNS/TLS, legal review); see [docs/LAUNCH.md](docs/LAUNCH.md) |
 
 Gmail sync, mobile apps, and further modules are V2/V3 — see the deferred list in [docs/ROADMAP.md](docs/ROADMAP.md).
 

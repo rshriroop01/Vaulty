@@ -149,11 +149,24 @@ versioning, health endpoints, audit log, feature flags, design tokens, docs.
   Stripe keys are present in this environment, so the real Checkout/portal redirect and real
   webhook signature verification are unverified against Stripe's actual servers
 
-## M10 — Hardening & launch
-- Terraform for production infra, staging environment, backups + restore drill,
-  Sentry + metrics dashboards, rate limiting, pen-test pass, legal review of medical data posture
-- Load test: search p95 <300ms, upload <2s at 10k-user scale (PRD Year-1 target)
-- **Exit:** production launch checklist green
+## M10 — Hardening & launch 🔧 (engineering landed 2026-07-20; exit pending external steps)
+- Terraform AWS baseline (`infra/terraform/`): 7 modules (network/database/redis/
+  storage/email/app/secrets) + staging & prod envs — ECS Fargate ×4 services, RDS
+  Postgres 16, ElastiCache, S3+SSE, ALB, SES, Secrets Manager; `fmt`/`validate`
+  clean on both envs; no secret values in code (RDS manages its own master secret)
+- Rate limiting: Redis fixed-window behind a provider Protocol — auth 10/min/IP,
+  assistant 20/min/user, public emergency 5/min — RFC 7807 429 + Retry-After,
+  fail-open on Redis outage; fully unit-tested
+- Sentry wired in the API behind `SENTRY_DSN` (web deliberately deferred — see
+  LAUNCH.md); backup/restore drill script run green against compose Postgres +
+  runbook (`docs/runbooks/backup-restore.md`)
+- Load tests (local, 10 VUs/30s, real Postgres/Redis/MinIO): search p95 75.8ms
+  (target <300ms), upload ticket flow p95 227.3ms (target <2s) — k6 scripts ready
+  for a staging-scale rerun; found + documented a stale-image CI gap on the way
+- `docs/LAUNCH.md`: dependency audits run, cookie/authz/webhook/presigned-URL
+  checks recorded, SES SMTP-auth + S3 task-role app gaps captured as blockers
+- **Exit (pending):** checklist items owned outside this repo — terraform apply,
+  DNS/TLS, live Sentry/Stripe accounts, legal review of the medical-data posture
 
 **Deferred (V2/V3 per PRD + decisions log):** Gmail sync (M-V2, needs Google restricted-scope
 verification lead time — start the application during M5), mobile apps (2j pattern exists),

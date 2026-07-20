@@ -25,6 +25,18 @@ parties (legal, a live Sentry project, a live Stripe account).
       image build pipeline actually rebuilds on every dependency change
       (this should be a CI-enforced image build, not a manual step) before
       launch. See `loadtest/RESULTS.md` for the full story.
+- [ ] SES SMTP auth support in the API — found during Terraform wiring:
+      `app/services/email.py`'s `SmtpEmailProvider` has no STARTTLS/AUTH,
+      so it works against local Mailpit but cannot authenticate to SES's
+      SMTP endpoint. Add TLS + credential support (or an SES API provider)
+      before pointing `SMTP_*` at SES. Infra side is already provisioned
+      (see `infra/terraform/README.md` → Known gaps).
+- [ ] S3 task-role credential fallback — `app/core/storage.py` always
+      passes explicit (possibly empty-string) credentials to boto3, which
+      defeats the ECS task-role IAM path the Terraform baseline grants.
+      Accept unset credentials and let boto3's default chain resolve them
+      before deploying to ECS (see `infra/terraform/README.md` → Known
+      gaps).
 
 ## Data
 
