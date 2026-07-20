@@ -10,6 +10,7 @@ signing and outbound email.
 import time
 from typing import Annotated
 
+import anthropic
 import anyio.to_thread
 import structlog
 from fastapi import APIRouter, Depends
@@ -86,7 +87,13 @@ async def ask(
         raise AssistantUnavailableError("Assistant unavailable")
 
     documents = await retrieval.retrieve(db, ctx, body.question, limit=8)
-    raw_answer = await anyio.to_thread.run_sync(assistant.ask, body.question, documents)
+    try:
+        raw_answer = await anyio.to_thread.run_sync(assistant.ask, body.question, documents)
+    except anthropic.APIError as exc:
+        # A present-but-invalid key (or an Anthropic outage) is an upstream
+        # problem, not the caller's — same 503 as the unconfigured path.
+        logger.warning("assistant_provider_error", error=type(exc).__name__)
+        raise AssistantUnavailableError("Assistant unavailable") from exc
 
     retrieved_ids = {str(d.id) for d in documents}
     answer = apply_guardrails(raw_answer, retrieved_ids)

@@ -187,6 +187,32 @@ async def test_no_api_key_returns_503(
     assert resp.json()["detail"] == "Assistant unavailable"
 
 
+async def test_provider_api_error_returns_503(
+    app: FastAPI, authed: AsyncClient, storage: FakeStorage, api_key_configured: None
+) -> None:
+    """A present-but-invalid ANTHROPIC_API_KEY (or an Anthropic outage) must
+    surface as the same 503 as the unconfigured path — never a raw 500.
+    Found live in QA: authentication_error escaped as an unhandled exception."""
+    import anthropic
+    import httpx
+
+    await _upload(authed, storage, "receipt.pdf")
+    await _set_flag(app, True)
+    await _set_plan(app, SIGNUP["email"], VaultPlan.premium)
+
+    class ExplodingAssistant:
+        def ask(self, question: str, documents: list) -> AssistantAnswer:  # type: ignore[type-arg]
+            request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+            response = httpx.Response(401, request=request, json={"error": {}})
+            raise anthropic.AuthenticationError("API key is invalid.", response=response, body=None)
+
+    app.dependency_overrides[get_assistant] = lambda: ExplodingAssistant()
+
+    resp = await authed.post("/api/v1/assistant/ask", json={"question": "anything?"})
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "Assistant unavailable"
+
+
 async def test_requires_auth(client: AsyncClient) -> None:
     resp = await client.post("/api/v1/assistant/ask", json={"question": "anything?"})
     assert resp.status_code == 401
